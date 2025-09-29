@@ -797,3 +797,5 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
     </div>
   );
 }
+
+export default YesNoScreen;

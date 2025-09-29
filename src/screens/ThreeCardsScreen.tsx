@@ -900,3 +900,5 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
     </div>
   );
 }
+
+export default ThreeCardsScreen;
