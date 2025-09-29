@@ -1,3 +1,5 @@
+const path = require("path");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -13,6 +15,10 @@ const nextConfig = {
   typescript: {
     // Отключаем проверку типов во время сборки для Render.com
     ignoreBuildErrors: true,
+  },
+  webpack: (config) => {
+    config.resolve.alias["@"] = path.resolve(__dirname, "src");
+    return config;
   },
 }
 
