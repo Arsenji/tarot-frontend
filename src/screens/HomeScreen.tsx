@@ -124,31 +124,54 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
 
   const loadSubscriptionInfo = async () => {
     try {
+      console.log('🔄 loadSubscriptionInfo started');
+      
       // Получаем валидный токен (из localStorage или через Telegram WebApp)
       const token = await getValidAuthToken();
+      console.log('🔑 Token received:', token ? `${token.substring(0, 20)}...` : 'NULL');
       
       if (!token) {
-        console.error('No auth token available');
+        console.error('❌ No auth token available');
         return;
       }
 
+      const endpoint = getApiEndpoint('/tarot/subscription-status');
+      console.log('🌐 Fetching from:', endpoint);
+
       // Используем endpoint для получения статуса подписки
-      const response = await fetch(getApiEndpoint('/tarot/subscription-status'), {
+      const response = await fetch(endpoint, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
       
+      console.log('📡 Response status:', response.status);
+      
+      if (!response.ok) {
+        console.error('❌ Response not OK:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Error body:', errorText);
+        return;
+      }
+      
       const data = await response.json();
-      console.log('📊 Subscription data:', data);
+      console.log('📊 Subscription data received:', JSON.stringify(data, null, 2));
       
       if (data.subscriptionInfo) {
+        console.log('✅ Setting subscriptionInfo:', data.subscriptionInfo);
+        console.log('   - hasSubscription:', data.subscriptionInfo.hasSubscription);
+        console.log('   - canUseYesNo:', data.subscriptionInfo.canUseYesNo);
+        console.log('   - canUseThreeCards:', data.subscriptionInfo.canUseThreeCards);
+        console.log('   - canUseDailyAdvice:', data.subscriptionInfo.canUseDailyAdvice);
+        
         setSubscriptionInfo(data.subscriptionInfo);
         setShowSubscriptionStatus(true);
+      } else {
+        console.error('❌ No subscriptionInfo in response');
       }
     } catch (error) {
-      console.error('Error loading subscription info:', error);
+      console.error('❌ Error loading subscription info:', error);
     }
   };
 
