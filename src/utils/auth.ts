@@ -11,6 +11,10 @@ export interface AuthTokenData {
   expires: number;
 }
 
+// ⚠️ ВРЕМЕННЫЙ ТОКЕН ДЛЯ ТЕСТИРОВАНИЯ (пока WebApp не заработает)
+// TODO: Удалить после исправления WebApp
+const TEMP_FALLBACK_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGRiZmVlZmU3YjJmMDY2YWMwZjI1ZWQiLCJ0ZWxlZ3JhbUlkIjozOTk0NzY2NzQsImlhdCI6MTc1OTUyMzY3OCwiZXhwIjoxNzkxMDU5Njc4fQ.mMDKAwGylO8weKAGSv5ZQW7zVkdgetwkIGj-ZNyT9d0';
+
 /**
  * Получение токена аутентификации через Telegram WebApp
  */
@@ -64,9 +68,18 @@ export const getAuthToken = async (): Promise<string | null> => {
         }
       } else {
         console.error('❌ Telegram WebApp not available or no initData');
+        console.log('⚠️ Using TEMP_FALLBACK_TOKEN for testing');
+        token = TEMP_FALLBACK_TOKEN;
+        localStorage.setItem('authToken', token);
       }
     } else {
       console.log('✅ Using existing token from localStorage');
+    }
+    
+    if (!token && TEMP_FALLBACK_TOKEN) {
+      console.log('⚠️ Final fallback - using TEMP_FALLBACK_TOKEN');
+      token = TEMP_FALLBACK_TOKEN;
+      localStorage.setItem('authToken', token);
     }
     
     return token;
