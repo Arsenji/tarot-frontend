@@ -152,7 +152,7 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
         console.error('❌ Response not OK:', response.status, response.statusText);
         const errorText = await response.text();
         console.error('Error body:', errorText);
-        return;
+      return;
       }
       
       const data = await response.json();
@@ -322,7 +322,7 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
         {/* Subscription Status */}
         {showSubscriptionStatus && subscriptionInfo && (
           <motion.div
-            className="px-4 mb-4"
+            className="px-4 mb-2"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
@@ -336,7 +336,7 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
         )}
 
         {/* Reading Options */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6 space-y-6">
+        <div className="flex-1 flex flex-col items-center justify-start px-6 pt-4 space-y-6">
           <motion.div
             className="w-full max-w-sm space-y-4"
             initial={{ opacity: 0, y: 50 }}
