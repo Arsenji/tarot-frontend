@@ -72,6 +72,15 @@ export interface TarotReading {
 }
 
 // Другие интерфейсы остаются без изменений...
+export interface CardData {
+  name: string;
+  imagePath: string;
+  meaning: string;
+  advice: string;
+  keywords: string;
+  detailedDescription?: string;
+}
+
 interface TarotCard {
   name: string;
   category: string;
@@ -198,6 +207,26 @@ class ApiService {
     return this.request<any>('/api/subscription/generate-payment', {
       method: 'POST',
       body: JSON.stringify({ spreadType }),
+    });
+  }
+
+  async getYesNoAnswer(question: string): Promise<ApiResponse<YesNoResult>> {
+    return this.request<YesNoResult>('/api/tarot/yes-no', {
+      method: 'POST',
+      body: JSON.stringify({ question }),
+    });
+  }
+
+  async getClarifyingAnswer(
+    question: string,
+    card: TarotCard,
+    interpretation: string,
+    category: string,
+    readingId?: string
+  ): Promise<ApiResponse<{ answer: string; card: TarotCard }>> {
+    return this.request<{ answer: string; card: TarotCard }>('/api/tarot/clarifying-answer', {
+      method: 'POST',
+      body: JSON.stringify({ question, card, interpretation, category, readingId }),
     });
   }
 }
