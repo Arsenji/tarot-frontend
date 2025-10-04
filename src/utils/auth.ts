@@ -13,7 +13,8 @@ export interface AuthTokenData {
 
 // ⚠️ ВРЕМЕННЫЙ ТОКЕН ДЛЯ ТЕСТИРОВАНИЯ (пока WebApp не заработает)
 // TODO: Удалить после исправления WebApp
-const TEMP_FALLBACK_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGRiZmVlZmU3YjJmMDY2YWMwZjI1ZWQiLCJ0ZWxlZ3JhbUlkIjozOTk0NzY2NzQsImlhdCI6MTc1OTUyMzY3OCwiZXhwIjoxNzkxMDU5Njc4fQ.mMDKAwGylO8weKAGSv5ZQW7zVkdgetwkIGj-ZNyT9d0';
+// Обновлен с правильным JWT_SECRET от production backend
+const TEMP_FALLBACK_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGRiZmVlZmU3YjJmMDY2YWMwZjI1ZWQiLCJ0ZWxlZ3JhbUlkIjozOTk0NzY2NzQsImlhdCI6MTc1OTU2MTE4NiwiZXhwIjoxNzkxMDk3MTg2fQ._gRjf-NjoNOIA_pB1exnixFssvD1e7vHP_dwVOvasdQ';
 
 /**
  * Получение токена аутентификации через Telegram WebApp
