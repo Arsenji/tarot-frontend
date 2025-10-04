@@ -14,8 +14,9 @@ export interface AuthTokenData {
 // ⚠️ ВРЕМЕННЫЙ ТОКЕН ДЛЯ ТЕСТИРОВАНИЯ (пока WebApp не заработает)
 // TODO: Удалить после исправления WebApp
 // Обновлен: 04.10.2025, действителен до 04.10.2026
-const TEMP_FALLBACK_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZWxlZ3JhbUlkIjoiMzk5NDc2Njc0IiwidXNlcklkIjoiNjhjOTM0NzUzZTNiY2IyNDg3ODhmZGYyIiwiaWF0IjoxNzU5NTYyODA3LCJleHAiOjE3OTEwOTg4MDd9.3QdoUb1IIybTBh-OVgAMrnp3bzbLdI0e-0s-7RPnhIQ';
-const TEMP_TOKEN_EXPIRES = 1791098807000; // 04.10.2026
+// userId из production БД: 68dbfeefe7b2f066ac0f25ed
+const TEMP_FALLBACK_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGRiZmVlZmU3YjJmMDY2YWMwZjI1ZWQiLCJ0ZWxlZ3JhbUlkIjozOTk0NzY2NzQsImlhdCI6MTc1OTU3MjUyNCwiZXhwIjoxNzkxMTA4NTI0fQ.vKLjpxN0cMPpHVDvaklNE2Jc7Jw9u5_ZjsG4kSFJnB8';
+const TEMP_TOKEN_EXPIRES = 1791108524000; // 04.10.2026
 
 /**
  * Получение токена аутентификации через Telegram WebApp
