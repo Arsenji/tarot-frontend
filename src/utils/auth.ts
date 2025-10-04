@@ -13,8 +13,9 @@ export interface AuthTokenData {
 
 // ⚠️ ВРЕМЕННЫЙ ТОКЕН ДЛЯ ТЕСТИРОВАНИЯ (пока WebApp не заработает)
 // TODO: Удалить после исправления WebApp
-// Обновлен с правильным JWT_SECRET от production backend
-const TEMP_FALLBACK_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGRiZmVlZmU3YjJmMDY2YWMwZjI1ZWQiLCJ0ZWxlZ3JhbUlkIjozOTk0NzY2NzQsImlhdCI6MTc1OTU2MTE4NiwiZXhwIjoxNzkxMDk3MTg2fQ._gRjf-NjoNOIA_pB1exnixFssvD1e7vHP_dwVOvasdQ';
+// Обновлен: 04.10.2025, действителен до 04.10.2026
+const TEMP_FALLBACK_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZWxlZ3JhbUlkIjoiMzk5NDc2Njc0IiwidXNlcklkIjoiNjhjOTM0NzUzZTNiY2IyNDg3ODhmZGYyIiwiaWF0IjoxNzU5NTYyODA3LCJleHAiOjE3OTEwOTg4MDd9.3QdoUb1IIybTBh-OVgAMrnp3bzbLdI0e-0s-7RPnhIQ';
+const TEMP_TOKEN_EXPIRES = 1791098807000; // 04.10.2026
 
 /**
  * Получение токена аутентификации через Telegram WebApp
@@ -72,6 +73,7 @@ export const getAuthToken = async (): Promise<string | null> => {
         console.log('⚠️ Using TEMP_FALLBACK_TOKEN for testing');
         token = TEMP_FALLBACK_TOKEN;
         localStorage.setItem('authToken', token);
+        localStorage.setItem('tokenExpires', TEMP_TOKEN_EXPIRES.toString());
       }
     } else {
       console.log('✅ Using existing token from localStorage');
@@ -81,6 +83,7 @@ export const getAuthToken = async (): Promise<string | null> => {
       console.log('⚠️ Final fallback - using TEMP_FALLBACK_TOKEN');
       token = TEMP_FALLBACK_TOKEN;
       localStorage.setItem('authToken', token);
+      localStorage.setItem('tokenExpires', TEMP_TOKEN_EXPIRES.toString());
     }
     
     return token;
