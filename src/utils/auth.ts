@@ -11,12 +11,9 @@ export interface AuthTokenData {
   expires: number;
 }
 
-// ⚠️ ВРЕМЕННЫЙ ТОКЕН ДЛЯ ТЕСТИРОВАНИЯ (пока WebApp не заработает)
-// TODO: Удалить после исправления WebApp
-// Обновлен: 04.10.2025, действителен до 04.10.2026
-// userId из production БД: 68dbfeefe7b2f066ac0f25ed
-const TEMP_FALLBACK_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGRiZmVlZmU3YjJmMDY2YWMwZjI1ZWQiLCJ0ZWxlZ3JhbUlkIjozOTk0NzY2NzQsImlhdCI6MTc1OTU3MjUyNCwiZXhwIjoxNzkxMTA4NTI0fQ.vKLjpxN0cMPpHVDvaklNE2Jc7Jw9u5_ZjsG4kSFJnB8';
-const TEMP_TOKEN_EXPIRES = 1791108524000; // 04.10.2026
+// ✅ TEMP_FALLBACK_TOKEN УДАЛЕН!
+// Backend /api/auth/telegram работает стабильно
+// Все пользователи получают токены динамически через Telegram WebApp initData
 
 /**
  * Получение токена аутентификации через Telegram WebApp
@@ -79,11 +76,8 @@ export const getAuthToken = async (): Promise<string | null> => {
             const errorText = await authResponse.text();
             console.error('❌ Auth response failed:', authResponse.status, authResponse.statusText);
             console.error('Error body:', errorText);
-            // Если ошибка - используем fallback
-            console.log('⚠️ Using TEMP_FALLBACK_TOKEN after auth error');
-            token = TEMP_FALLBACK_TOKEN;
-            localStorage.setItem('authToken', token);
-            localStorage.setItem('tokenExpires', TEMP_TOKEN_EXPIRES.toString());
+            console.error('🚨 Cannot authenticate - backend returned error');
+            return null;
           }
         } catch (error) {
           console.error('❌ Auth request failed:', error);
@@ -101,29 +95,16 @@ export const getAuthToken = async (): Promise<string | null> => {
             }
           }
           
-          // Если timeout или network error - используем fallback
-          console.log('⚠️ Using TEMP_FALLBACK_TOKEN after request error');
-          console.log('🚨 WARNING: TEMP_FALLBACK_TOKEN is temporary and will be removed!');
-          token = TEMP_FALLBACK_TOKEN;
-          localStorage.setItem('authToken', token);
-          localStorage.setItem('tokenExpires', TEMP_TOKEN_EXPIRES.toString());
+          console.error('🚨 Cannot authenticate - no fallback available');
+          return null;
         }
       } else {
         console.error('❌ Telegram WebApp not available or no initData');
-        console.log('⚠️ Using TEMP_FALLBACK_TOKEN for testing');
-        token = TEMP_FALLBACK_TOKEN;
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('tokenExpires', TEMP_TOKEN_EXPIRES.toString());
+        console.error('🚨 Cannot authenticate without Telegram WebApp');
+        return null;
       }
     } else {
       console.log('✅ Using existing token from localStorage');
-    }
-    
-    if (!token && TEMP_FALLBACK_TOKEN) {
-      console.log('⚠️ Final fallback - using TEMP_FALLBACK_TOKEN');
-      token = TEMP_FALLBACK_TOKEN;
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('tokenExpires', TEMP_TOKEN_EXPIRES.toString());
     }
     
     return token;
