@@ -152,7 +152,36 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
         console.error('❌ Response not OK:', response.status, response.statusText);
         const errorText = await response.text();
         console.error('Error body:', errorText);
-      return;
+        
+        // Если 401 - токен невалиден, очищаем и пробуем снова
+        if (response.status === 401) {
+          console.log('🔄 401 Unauthorized - clearing old token and retrying...');
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('tokenExpires');
+          
+          // Пробуем получить новый токен и повторить запрос
+          const newToken = await getValidAuthToken();
+          if (newToken) {
+            console.log('🔑 Got new token, retrying request...');
+            const retryResponse = await fetch(endpoint, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${newToken}`,
+              },
+            });
+            
+            if (retryResponse.ok) {
+              const retryData = await retryResponse.json();
+              if (retryData.subscriptionInfo) {
+                setSubscriptionInfo(retryData.subscriptionInfo);
+                setShowSubscriptionStatus(true);
+              }
+              return;
+            }
+          }
+        }
+        
+        return;
       }
       
       const data = await response.json();
