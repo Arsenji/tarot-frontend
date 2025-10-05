@@ -43,31 +43,51 @@ export const getAuthToken = async (): Promise<string | null> => {
         const endpoint = getApiEndpoint('/auth/telegram');
         console.log('🌐 Requesting token from:', endpoint);
         
-        const authResponse = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ initData })
-        });
-        
-        console.log('📡 Auth response status:', authResponse.status);
-        
-        if (authResponse.ok) {
-          const authData = await authResponse.json();
-          console.log('✅ Auth successful, token received');
-          token = authData.token;
+        try {
+          // Добавляем timeout 10 секунд
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
           
-          // Сохраняем токен в localStorage
-          localStorage.setItem('authToken', token);
-          if (authData.expires) {
-            localStorage.setItem('tokenExpires', authData.expires.toString());
+          const authResponse = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ initData }),
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          console.log('📡 Auth response status:', authResponse.status);
+          
+          if (authResponse.ok) {
+            const authData = await authResponse.json();
+            console.log('✅ Auth successful, token received');
+            token = authData.token;
+            
+            // Сохраняем токен в localStorage
+            localStorage.setItem('authToken', token);
+            if (authData.expires) {
+              localStorage.setItem('tokenExpires', authData.expires.toString());
+            }
+            console.log('💾 Token saved to localStorage');
+          } else {
+            const errorText = await authResponse.text();
+            console.error('❌ Auth response failed:', authResponse.status, authResponse.statusText);
+            console.error('Error body:', errorText);
+            // Если ошибка - используем fallback
+            console.log('⚠️ Using TEMP_FALLBACK_TOKEN after auth error');
+            token = TEMP_FALLBACK_TOKEN;
+            localStorage.setItem('authToken', token);
+            localStorage.setItem('tokenExpires', TEMP_TOKEN_EXPIRES.toString());
           }
-          console.log('💾 Token saved to localStorage');
-        } else {
-          const errorText = await authResponse.text();
-          console.error('❌ Auth response failed:', authResponse.status, authResponse.statusText);
-          console.error('Error body:', errorText);
+        } catch (error) {
+          console.error('❌ Auth request failed:', error);
+          // Если timeout или network error - используем fallback
+          console.log('⚠️ Using TEMP_FALLBACK_TOKEN after request error');
+          token = TEMP_FALLBACK_TOKEN;
+          localStorage.setItem('authToken', token);
+          localStorage.setItem('tokenExpires', TEMP_TOKEN_EXPIRES.toString());
         }
       } else {
         console.error('❌ Telegram WebApp not available or no initData');
