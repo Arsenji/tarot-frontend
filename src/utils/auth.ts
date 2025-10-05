@@ -44,9 +44,11 @@ export const getAuthToken = async (): Promise<string | null> => {
         console.log('🌐 Requesting token from:', endpoint);
         
         try {
-          // Добавляем timeout 10 секунд
+          // Добавляем timeout 60 секунд (для cold start на Render)
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000);
+          const timeoutId = setTimeout(() => controller.abort(), 60000);
+          
+          console.log('⏱️ Timeout set: 60 seconds (waiting for backend cold start)');
           
           const authResponse = await fetch(endpoint, {
             method: 'POST',
@@ -58,7 +60,9 @@ export const getAuthToken = async (): Promise<string | null> => {
           });
           
           clearTimeout(timeoutId);
+          const responseTime = Date.now();
           console.log('📡 Auth response status:', authResponse.status);
+          console.log('⏱️ Response time: ~' + Math.round((responseTime - Date.now()) / 1000) + 's (should be fast)');
           
           if (authResponse.ok) {
             const authData = await authResponse.json();
@@ -83,8 +87,23 @@ export const getAuthToken = async (): Promise<string | null> => {
           }
         } catch (error) {
           console.error('❌ Auth request failed:', error);
+          
+          if (error instanceof Error) {
+            if (error.name === 'AbortError') {
+              console.error('⏱️ TIMEOUT after 60 seconds - backend is not responding!');
+              console.error('🚨 This indicates a serious backend problem:');
+              console.error('   1. Backend is sleeping (cold start > 60s)');
+              console.error('   2. MongoDB connection timeout');
+              console.error('   3. Error in /api/auth/telegram endpoint');
+              console.error('📋 CHECK BACKEND LOGS ON RENDER!');
+            } else {
+              console.error('🌐 Network error:', error.message);
+            }
+          }
+          
           // Если timeout или network error - используем fallback
           console.log('⚠️ Using TEMP_FALLBACK_TOKEN after request error');
+          console.log('🚨 WARNING: TEMP_FALLBACK_TOKEN is temporary and will be removed!');
           token = TEMP_FALLBACK_TOKEN;
           localStorage.setItem('authToken', token);
           localStorage.setItem('tokenExpires', TEMP_TOKEN_EXPIRES.toString());
