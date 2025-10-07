@@ -95,13 +95,19 @@ export default function Home() {
         // Создаем временное состояние для модального окна
         const modal = document.createElement('div');
         modal.innerHTML = `
-          <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 99999; display: flex; align-items: center; justify-content: center; padding: 20px;">
-            <div style="background: #1e293b; border-radius: 016px; padding: 24px; max-width: 400px; width: 100%; border: 1px solid #475569;">
-              <h3 style="color: white; font-size: 18px; font-weight: 600; margin-bottom: 12px;">Требуется подписка</h3>
+          <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 99999; display: flex; align-items: center; justify-content: center; padding: 20px;" onclick="this.remove()">
+            <div style="background: #1e293b; border-radius: 16px; padding: 24px; max-width: 400px; width: 100%; border: 1px solid #475569; position: relative;" onclick="event.stopPropagation()">
+              <button onclick="this.parentElement.parentElement.remove()" style="position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#94a3b8'">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+              <h3 style="color: white; font-size: 18px; font-weight: 600; margin-bottom: 12px; padding-right: 30px;">Требуется подписка</h3>
               <p style="color: #cbd5e1; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">Подписка — это ваш доступ к полному функционалу. Оформите её прямо сейчас и продолжайте работу без ограничений.</p>
               <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                <button onclick="this.closest('div').remove()" style="padding: 8px 16px; background: #475569; color: white; border: none; border-radius: 8px; cursor: pointer;">Закрыть</button>
-                <button onclick="window.open('https://t.me/your_bot_username', '_blank'); this.closest('div').remove();" style="padding: 8px 16px; background: #7c3aed; color: white; border: none; border-radius: 8px; cursor: pointer;">Оформить подписку</button>
+                <button onclick="this.closest('div').parentElement.remove()" style="padding: 8px 16px; background: #475569; color: white; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#64748b'" onmouseout="this.style.background='#475569'">Закрыть</button>
+                <button onclick="window.open('https://t.me/tarolog_app_bot?start=buy_subscription', '_blank'); this.closest('div').parentElement.remove();" style="padding: 8px 16px; background: #7c3aed; color: white; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">Оформить подписку</button>
               </div>
             </div>
           </div>
