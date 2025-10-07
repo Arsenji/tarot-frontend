@@ -17,8 +17,31 @@ export default function Home() {
   const [authToken, setAuthToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // ⚡ ОПТИМИЗАЦИЯ: Предзагрузка токена в фоне (не блокируем UI)
-    const preloadAuth = async () => {
+    const init = async () => {
+      // ⚡ ОПТИМИЗАЦИЯ: Сначала инициализируем Telegram WebApp, ПОТОМ предзагружаем токен
+      if (typeof window !== 'undefined') {
+        try {
+          // Динамический импорт для избежания ошибок SSR
+          await import('@twa-dev/sdk').then((TWA) => {
+            const WebApp = (TWA as any).WebApp || (TWA as any).default?.WebApp;
+            if (WebApp) {
+              WebApp.ready();
+              WebApp.expand();
+              console.log('✅ Telegram WebApp SDK initialized');
+            }
+          }).catch(() => {
+            // Игнорируем ошибки если SDK недоступен
+            console.log('Telegram WebApp SDK not available');
+          });
+          
+          // Даём время на инициализацию SDK (100ms достаточно)
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+          console.log('Telegram WebApp SDK not available:', error);
+        }
+      }
+
+      // Теперь предзагружаем токен (Telegram SDK уже инициализирован)
       try {
         const { getValidAuthToken } = await import('@/utils/auth');
         const token = await getValidAuthToken();
@@ -29,27 +52,7 @@ export default function Home() {
       }
     };
     
-    // Запускаем предзагрузку параллельно с Telegram WebApp init
-    preloadAuth();
-
-    // Инициализируем Telegram WebApp
-    if (typeof window !== 'undefined') {
-      try {
-        // Динамический импорт для избежания ошибок SSR
-                import('@twa-dev/sdk').then((TWA) => {
-                  const WebApp = (TWA as any).WebApp || (TWA as any).default?.WebApp;
-                  if (WebApp) {
-                    WebApp.ready();
-                    WebApp.expand();
-                  }
-                }).catch(() => {
-          // Игнорируем ошибки если SDK недоступен
-          console.log('Telegram WebApp SDK not available');
-        });
-      } catch (error) {
-        console.log('Telegram WebApp SDK not available:', error);
-      }
-    }
+    init();
 
     // Отключаем мониторинг производительности - он вызывает проблемы
     // initPerformanceMonitoring();
