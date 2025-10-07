@@ -28,13 +28,32 @@ export const getAuthToken = async (): Promise<string | null> => {
     
     if (!token) {
       console.log('🔍 No token in localStorage, checking Telegram WebApp...');
-      console.log('Window available:', typeof window !== 'undefined');
-      console.log('Telegram object:', !!(window as any).Telegram);
-      console.log('Telegram.WebApp:', !!(window as any).Telegram?.WebApp);
-      console.log('Telegram.WebApp.initData:', !!(window as any).Telegram?.WebApp?.initData);
       
-      if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.initData) {
-        const initData = (window as any).Telegram.WebApp.initData;
+      // ✅ FIX: Добавляем retry логику для ожидания инициализации Telegram WebApp
+      let initData: string | null = null;
+      const maxRetries = 3;
+      
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        console.log(`🔄 Attempt ${attempt + 1}/${maxRetries} to get Telegram initData`);
+        console.log('Window available:', typeof window !== 'undefined');
+        console.log('Telegram object:', !!(window as any).Telegram);
+        console.log('Telegram.WebApp:', !!(window as any).Telegram?.WebApp);
+        console.log('Telegram.WebApp.initData:', !!(window as any).Telegram?.WebApp?.initData);
+        
+        if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.initData) {
+          initData = (window as any).Telegram.WebApp.initData;
+          console.log('✅ initData found on attempt', attempt + 1);
+          break;
+        }
+        
+        // Если не последняя попытка, ждем 200ms перед следующей
+        if (attempt < maxRetries - 1) {
+          console.log('⏳ Waiting 200ms before retry...');
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+      
+      if (typeof window !== 'undefined' && initData) {
         console.log('✅ initData available:', initData ? `${initData.substring(0, 50)}...` : 'EMPTY');
         
         const endpoint = getApiEndpoint('/auth/telegram');

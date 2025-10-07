@@ -71,41 +71,9 @@ export default function Home() {
 
   const checkSubscriptionForHistory = async () => {
     try {
-      // Получаем токен динамически через Telegram WebApp
-      const getAuthToken = async () => {
-        try {
-          // Сначала проверяем, есть ли токен в localStorage
-          let token = localStorage.getItem('authToken');
-          
-          if (!token && typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.initData) {
-            // Если токена нет, получаем его через Telegram WebApp
-            const initData = (window as any).Telegram.WebApp.initData;
-            
-            const authResponse = await fetch('/api/auth/telegram', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ initData })
-            });
-            
-            if (authResponse.ok) {
-              const authData = await authResponse.json();
-              token = authData.token;
-              if (token) {
-                localStorage.setItem('authToken', token);
-              }
-            }
-          }
-          
-          return token;
-        } catch (error) {
-          console.error('Error getting auth token:', error);
-          return null;
-        }
-      };
-
-      const token = await getAuthToken();
+      // ✅ FIX: Используем getValidAuthToken вместо дублирования кода
+      const { getValidAuthToken } = await import('@/utils/auth');
+      const token = await getValidAuthToken();
       
       const response = await fetch(getApiEndpoint('/tarot/subscription-status'), {
         method: 'GET',

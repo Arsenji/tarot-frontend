@@ -221,6 +221,47 @@ interface OneCardScreenProps {
   onBack: () => void;
 }
 
+// ✅ FIX: Функция для форматирования текста совета от AI
+const formatAdviceText = (text: string): JSX.Element[] => {
+  if (!text) return [];
+  
+  // Разбиваем текст на абзацы по двойным переносам или точкам с переносом
+  const paragraphs = text.split(/\n\n+|\. (?=[А-ЯA-Z])/g).filter(p => p.trim());
+  
+  return paragraphs.map((paragraph, index) => {
+    let formattedParagraph = paragraph.trim();
+    
+    // Проверяем, является ли абзац элементом нумерованного списка
+    const isListItem = /^\d+\.\s*\*?\*?/.test(formattedParagraph);
+    
+    if (isListItem) {
+      // Убираем звездочки markdown из начала списка
+      formattedParagraph = formattedParagraph.replace(/^\d+\.\s*\*?\*?/, (match) => {
+        const num = match.match(/^\d+/)?.[0];
+        return `${num}. `;
+      });
+    }
+    
+    // Форматируем жирный текст **текст** -> <strong>текст</strong>
+    const parts = formattedParagraph.split(/(\*\*[^*]+\*\*)/g);
+    const formatted = parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} className="text-amber-300">{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+    
+    // Добавляем точку в конце если её нет
+    const needsPeriod = !formattedParagraph.match(/[.!?]$/);
+    
+    return (
+      <p key={index} className={`${isListItem ? 'ml-4' : ''} ${index > 0 ? 'mt-3' : ''}`}>
+        {formatted}{needsPeriod && '.'}
+      </p>
+    );
+  });
+};
+
 export function OneCardScreen({ onBack }: OneCardScreenProps) {
   const [selectedCard, setSelectedCard] = useState<typeof tarotCards[0] | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -570,9 +611,9 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
                   <span className="text-amber-400 text-sm">Толкование</span>
                   <Sparkles className="w-4 h-4 text-amber-400 ml-2" />
                 </div>
-                <p className="text-white text-sm leading-relaxed">
-                  {aiAdvice || selectedCard.advice}
-                </p>
+                <div className="text-white text-sm leading-relaxed">
+                  {formatAdviceText(aiAdvice || selectedCard.advice)}
+                </div>
               </motion.div>
 
               {/* Mystical decoration */}
