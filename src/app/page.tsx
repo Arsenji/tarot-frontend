@@ -14,8 +14,24 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'home' | 'history'>('home');
   const [showWelcome, setShowWelcome] = useState(true);
   const [currentScreen, setCurrentScreen] = useState<'main' | 'oneCard' | 'threeCards' | 'yesNo'>('main');
+  const [authToken, setAuthToken] = useState<string | null>(null);
 
   useEffect(() => {
+    // ⚡ ОПТИМИЗАЦИЯ: Предзагрузка токена в фоне (не блокируем UI)
+    const preloadAuth = async () => {
+      try {
+        const { getValidAuthToken } = await import('@/utils/auth');
+        const token = await getValidAuthToken();
+        console.log('⚡ Auth token preloaded in page.tsx:', token ? 'SUCCESS' : 'FAILED');
+        setAuthToken(token);
+      } catch (error) {
+        console.error('⚡ Auth token preload error:', error);
+      }
+    };
+    
+    // Запускаем предзагрузку параллельно с Telegram WebApp init
+    preloadAuth();
+
     // Инициализируем Telegram WebApp
     if (typeof window !== 'undefined') {
       try {
@@ -151,6 +167,7 @@ export default function Home() {
                 onOneCard={() => setCurrentScreen('oneCard')}
                 onYesNo={() => setCurrentScreen('yesNo')}
                 onThreeCards={() => setCurrentScreen('threeCards')}
+                preloadedAuthToken={authToken}
               />
             );
           case 'history':
@@ -169,6 +186,7 @@ export default function Home() {
                 onOneCard={() => setCurrentScreen('oneCard')}
                 onYesNo={() => setCurrentScreen('yesNo')}
                 onThreeCards={() => setCurrentScreen('threeCards')}
+                preloadedAuthToken={authToken}
               />
             );
         }

@@ -104,11 +104,19 @@ interface MainScreenProps {
   onYesNo: () => void;
   activeTab: 'home' | 'history';
   onTabChange: (tab: 'home' | 'history') => void;
+  preloadedAuthToken?: string | null; // ⚡ ОПТИМИЗАЦИЯ: Токен предзагружен в page.tsx
 }
 
-export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabChange }: MainScreenProps) {
-  const [subscriptionInfo, setSubscriptionInfo] = useState<any>(null);
-  const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
+export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabChange, preloadedAuthToken }: MainScreenProps) {
+  // ⚡ OPTIMISTIC UI: Начинаем с предположения что пользователь может всё
+  // Данные загружаются асинхронно и обновляют UI когда приходят
+  const [subscriptionInfo, setSubscriptionInfo] = useState<any>({
+    hasSubscription: true, // Оптимистично считаем что есть подписка
+    canUseDailyAdvice: true,
+    canUseYesNo: true,
+    canUseThreeCards: true,
+  });
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(false); // НЕ блокируем UI
   const [showSubscriptionStatus, setShowSubscriptionStatus] = useState(false);
   const [showTooltip, setShowTooltip] = useState<string | null>(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
@@ -119,17 +127,26 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
   }>({ title: '', message: '' });
 
   useEffect(() => {
-    // Загружаем информацию о подписке при монтировании
+    // Загружаем информацию о подписке АСИНХРОННО (не блокируя UI)
     loadSubscriptionInfo();
-  }, []);
+  }, [preloadedAuthToken]); // ⚡ Перезагружаем когда токен приходит
 
   const loadSubscriptionInfo = async () => {
     try {
       console.log('🔄 loadSubscriptionInfo started');
       setIsLoadingSubscription(true);
       
-      // Получаем валидный токен (из localStorage или через Telegram WebApp)
-      const token = await getValidAuthToken();
+      // ⚡ ОПТИМИЗАЦИЯ: Используем предзагруженный токен из page.tsx
+      let token = preloadedAuthToken;
+      
+      // Если токен еще не пришел, получаем его сами
+      if (!token) {
+        console.log('⏳ Preloaded token not ready, fetching...');
+        token = await getValidAuthToken();
+      } else {
+        console.log('⚡ Using preloaded auth token from page.tsx');
+      }
+      
       console.log('🔑 Token received:', token ? `${token.substring(0, 20)}...` : 'NULL');
       
       if (!token) {
@@ -219,7 +236,7 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
   };
 
   const handleOneCard = () => {
-    if (isLoadingSubscription) return; // Блокируем клики во время загрузки
+    // ⚡ OPTIMISTIC UI: НЕ блокируем клики, позволяем пользователю действовать сразу
     if (subscriptionInfo?.canUseDailyAdvice) {
       onOneCard();
     } else {
@@ -228,7 +245,7 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
   };
 
   const handleThreeCards = () => {
-    if (isLoadingSubscription) return; // Блокируем клики во время загрузки
+    // ⚡ OPTIMISTIC UI: НЕ блокируем клики, позволяем пользователю действовать сразу
     if (subscriptionInfo?.canUseThreeCards) {
       onThreeCards();
     } else {
@@ -237,7 +254,7 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
   };
 
   const handleYesNo = () => {
-    if (isLoadingSubscription) return; // Блокируем клики во время загрузки
+    // ⚡ OPTIMISTIC UI: НЕ блокируем клики, позволяем пользователю действовать сразу
     if (subscriptionInfo?.canUseYesNo) {
       onYesNo();
     } else {
@@ -391,32 +408,25 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
           >
             {/* One Card Button */}
             <motion.div 
-              whileHover={{ scale: (!isLoadingSubscription && subscriptionInfo?.canUseDailyAdvice) ? 1.02 : 1 }} 
-              whileTap={{ scale: (!isLoadingSubscription && subscriptionInfo?.canUseDailyAdvice) ? 0.98 : 1 }}
+              whileHover={{ scale: subscriptionInfo?.canUseDailyAdvice ? 1.02 : 1 }} 
+              whileTap={{ scale: subscriptionInfo?.canUseDailyAdvice ? 0.98 : 1 }}
               className="relative"
             >
               <Button
                 onClick={handleOneCard}
-                disabled={isLoadingSubscription}
                 className={`w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm ${
-                  isLoadingSubscription
-                    ? 'bg-slate-800/50 border-slate-600/30 animate-pulse'
-                    : subscriptionInfo?.canUseDailyAdvice
+                  subscriptionInfo?.canUseDailyAdvice
                     ? 'bg-slate-800/50 hover:bg-slate-700/50 border-amber-400/30 hover:border-amber-400/50 hover:shadow-2xl'
                     : 'bg-slate-800/30 border-slate-600/30 opacity-60'
                 }`}
               >
                 <div className="flex items-center space-x-6 w-full pl-2">
                   <div className={`p-3 rounded-2xl border flex-shrink-0 ${
-                    isLoadingSubscription
-                      ? 'bg-slate-600/20 border-slate-500/30 animate-pulse'
-                      : subscriptionInfo?.canUseDailyAdvice
+                    subscriptionInfo?.canUseDailyAdvice
                       ? 'bg-amber-600/20 border-amber-400/30'
                       : 'bg-slate-600/20 border-slate-500/30'
                   }`}>
-                    {isLoadingSubscription ? (
-                      <div className="w-6 h-6 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
-                    ) : subscriptionInfo?.canUseDailyAdvice ? (
+                    {subscriptionInfo?.canUseDailyAdvice ? (
                       <SparklesIcon className="w-6 h-6 text-amber-400" />
                     ) : (
                       <Lock className="w-6 h-6 text-slate-400" />
@@ -424,11 +434,11 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
                   </div>
                           <div className="text-left flex-1">
                             <div className={`text-lg font-semibold ${
-                              isLoadingSubscription ? 'text-slate-300' : subscriptionInfo?.canUseDailyAdvice ? 'text-white' : 'text-slate-400'
+                              subscriptionInfo?.canUseDailyAdvice ? 'text-white' : 'text-slate-400'
                             }`}>Одна карта</div>
                             <div className={`text-sm ${
-                              isLoadingSubscription ? 'text-slate-400' : subscriptionInfo?.canUseDailyAdvice ? 'text-gray-300' : 'text-slate-500'
-                            }`}>{isLoadingSubscription ? 'Загрузка...' : 'Совет дня'}</div>
+                              subscriptionInfo?.canUseDailyAdvice ? 'text-gray-300' : 'text-slate-500'
+                            }`}>Совет дня</div>
                             {!subscriptionInfo?.hasSubscription && (
                               <div className="text-xs text-amber-400 mt-1">
                                 {getRemainingText('daily')}
@@ -454,32 +464,25 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
 
             {/* Yes/No Button */}
             <motion.div 
-              whileHover={{ scale: (!isLoadingSubscription && subscriptionInfo?.canUseYesNo) ? 1.02 : 1 }} 
-              whileTap={{ scale: (!isLoadingSubscription && subscriptionInfo?.canUseYesNo) ? 0.98 : 1 }}
+              whileHover={{ scale: subscriptionInfo?.canUseYesNo ? 1.02 : 1 }} 
+              whileTap={{ scale: subscriptionInfo?.canUseYesNo ? 0.98 : 1 }}
               className="relative"
             >
               <Button
                 onClick={handleYesNo}
-                disabled={isLoadingSubscription}
                 className={`w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm ${
-                  isLoadingSubscription
-                    ? 'bg-slate-800/50 border-slate-600/30 animate-pulse'
-                    : subscriptionInfo?.canUseYesNo
+                  subscriptionInfo?.canUseYesNo
                     ? 'bg-slate-800/50 hover:bg-slate-700/50 border-emerald-400/30 hover:border-emerald-400/50 hover:shadow-2xl'
                     : 'bg-slate-800/30 border-slate-600/30 opacity-60'
                 }`}
               >
                 <div className="flex items-center space-x-6 w-full pl-2">
                   <div className={`p-3 rounded-2xl border flex-shrink-0 ${
-                    isLoadingSubscription
-                      ? 'bg-slate-600/20 border-slate-500/30 animate-pulse'
-                      : subscriptionInfo?.canUseYesNo
+                    subscriptionInfo?.canUseYesNo
                       ? 'bg-emerald-600/20 border-emerald-400/30'
                       : 'bg-slate-600/20 border-slate-500/30'
                   }`}>
-                    {isLoadingSubscription ? (
-                      <div className="w-6 h-6 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
-                    ) : subscriptionInfo?.canUseYesNo ? (
+                    {subscriptionInfo?.canUseYesNo ? (
                       <HelpCircle className="w-6 h-6 text-emerald-400" />
                     ) : (
                       <Lock className="w-6 h-6 text-slate-400" />
@@ -487,11 +490,11 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
                   </div>
                           <div className="text-left flex-1">
                             <div className={`text-lg font-semibold ${
-                              isLoadingSubscription ? 'text-slate-300' : subscriptionInfo?.canUseYesNo ? 'text-white' : 'text-slate-400'
+                              subscriptionInfo?.canUseYesNo ? 'text-white' : 'text-slate-400'
                             }`}>Да/Нет</div>
                             <div className={`text-sm ${
-                              isLoadingSubscription ? 'text-slate-400' : subscriptionInfo?.canUseYesNo ? 'text-gray-300' : 'text-slate-500'
-                            }`}>{isLoadingSubscription ? 'Загрузка...' : 'Быстрый ответ'}</div>
+                              subscriptionInfo?.canUseYesNo ? 'text-gray-300' : 'text-slate-500'
+                            }`}>Быстрый ответ</div>
                             {!subscriptionInfo?.hasSubscription && (
                               <div className="text-xs text-emerald-400 mt-1">
                                 {getRemainingText('yesno')}
@@ -517,32 +520,25 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
 
             {/* Three Cards Button */}
             <motion.div 
-              whileHover={{ scale: (!isLoadingSubscription && subscriptionInfo?.canUseThreeCards) ? 1.02 : 1 }} 
-              whileTap={{ scale: (!isLoadingSubscription && subscriptionInfo?.canUseThreeCards) ? 0.98 : 1 }}
+              whileHover={{ scale: subscriptionInfo?.canUseThreeCards ? 1.02 : 1 }} 
+              whileTap={{ scale: subscriptionInfo?.canUseThreeCards ? 0.98 : 1 }}
               className="relative"
             >
               <Button
                 onClick={handleThreeCards}
-                disabled={isLoadingSubscription}
                 className={`w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm ${
-                  isLoadingSubscription
-                    ? 'bg-slate-800/50 border-slate-600/30 animate-pulse'
-                    : subscriptionInfo?.canUseThreeCards
+                  subscriptionInfo?.canUseThreeCards
                     ? 'bg-slate-800/50 hover:bg-slate-700/50 border-purple-400/30 hover:border-purple-400/50 hover:shadow-2xl'
                     : 'bg-slate-800/30 border-slate-600/30 opacity-60'
                 }`}
               >
                 <div className="flex items-center space-x-6 w-full pl-2">
                   <div className={`p-3 rounded-2xl border flex-shrink-0 ${
-                    isLoadingSubscription
-                      ? 'bg-slate-600/20 border-slate-500/30 animate-pulse'
-                      : subscriptionInfo?.canUseThreeCards
+                    subscriptionInfo?.canUseThreeCards
                       ? 'bg-purple-600/20 border-purple-400/30'
                       : 'bg-slate-600/20 border-slate-500/30'
                   }`}>
-                    {isLoadingSubscription ? (
-                      <div className="w-6 h-6 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
-                    ) : subscriptionInfo?.canUseThreeCards ? (
+                    {subscriptionInfo?.canUseThreeCards ? (
                       <Calendar className="w-6 h-6 text-purple-400" />
                     ) : (
                       <Lock className="w-6 h-6 text-slate-400" />
@@ -550,11 +546,11 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
                   </div>
                           <div className="text-left flex-1">
                             <div className={`text-lg font-semibold ${
-                              isLoadingSubscription ? 'text-slate-300' : subscriptionInfo?.canUseThreeCards ? 'text-white' : 'text-slate-400'
+                              subscriptionInfo?.canUseThreeCards ? 'text-white' : 'text-slate-400'
                             }`}>Три карты</div>
                             <div className={`text-sm ${
-                              isLoadingSubscription ? 'text-slate-400' : subscriptionInfo?.canUseThreeCards ? 'text-gray-300' : 'text-slate-500'
-                            }`}>{isLoadingSubscription ? 'Загрузка...' : 'Прошлое–Настоящее–Будущее'}</div>
+                              subscriptionInfo?.canUseThreeCards ? 'text-gray-300' : 'text-slate-500'
+                            }`}>Прошлое–Настоящее–Будущее</div>
                             {!subscriptionInfo?.hasSubscription && (
                               <div className="text-xs text-purple-400 mt-1">
                                 {getRemainingText('three_cards')}
