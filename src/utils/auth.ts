@@ -62,9 +62,9 @@ export const getAuthToken = async (): Promise<string | null> => {
         try {
           // Добавляем timeout 60 секунд (для cold start на Render)
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 60000);
+          const timeoutId = setTimeout(() => controller.abort(), 20000); // ⚡ УМЕНЬШЕНО до 20 сек
           
-          console.log('⏱️ Timeout set: 60 seconds (waiting for backend cold start)');
+          console.log('⏱️ Timeout set: 20 seconds (waiting for backend cold start)');
           
           const authResponse = await fetch(endpoint, {
             method: 'POST',
@@ -103,12 +103,17 @@ export const getAuthToken = async (): Promise<string | null> => {
           
           if (error instanceof Error) {
             if (error.name === 'AbortError') {
-              console.error('⏱️ TIMEOUT after 60 seconds - backend is not responding!');
+              console.error('⏱️ TIMEOUT after 20 seconds - backend is not responding!');
               console.error('🚨 This indicates a serious backend problem:');
-              console.error('   1. Backend is sleeping (cold start > 60s)');
+              console.error('   1. Backend is sleeping (cold start)');
               console.error('   2. MongoDB connection timeout');
-              console.error('   3. Error in /api/auth/telegram endpoint');
+              console.error('   3. Неправильный MONGODB_URI на Render');
               console.error('📋 CHECK BACKEND LOGS ON RENDER!');
+              
+              // ✅ FIX: Показываем пользователю понятное сообщение
+              if (typeof window !== 'undefined') {
+                alert('⚠️ Сервер временно недоступен\n\nПопробуйте обновить страницу через 30 секунд.\nЕсли проблема повторяется - обратитесь в поддержку.');
+              }
             } else {
               console.error('🌐 Network error:', error.message);
             }
