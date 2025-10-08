@@ -40,6 +40,29 @@ export const getAuthToken = async (): Promise<string | null> => {
         console.log('Telegram.WebApp:', !!(window as any).Telegram?.WebApp);
         console.log('Telegram.WebApp.initData:', !!(window as any).Telegram?.WebApp?.initData);
         
+        // 🔍 ДИАГНОСТИКА: Выводим полную информацию о Telegram WebApp
+        if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
+          const webApp = (window as any).Telegram.WebApp;
+          console.log('🔍 Telegram WebApp details:', {
+            isReady: webApp.isReady,
+            platform: webApp.platform,
+            version: webApp.version,
+            initDataUnsafe: webApp.initDataUnsafe ? 'EXISTS' : 'NULL',
+            initData_length: webApp.initData?.length || 0
+          });
+          
+          if (webApp.initData) {
+            console.log('✅ initData preview:', webApp.initData.substring(0, 100) + '...');
+          } else {
+            console.error('❌ initData is EMPTY or UNDEFINED!');
+            console.error('🚨 ПРИЧИНА: Приложение открыто НЕ через Telegram WebApp кнопку!');
+            console.error('📋 РЕШЕНИЕ:');
+            console.error('   1. Закройте это окно');
+            console.error('   2. Откройте бота в Telegram');
+            console.error('   3. Нажмите кнопку "🔮 Открыть приложение"');
+          }
+        }
+        
         if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.initData) {
           initData = (window as any).Telegram.WebApp.initData;
           console.log('✅ initData found on attempt', attempt + 1);
