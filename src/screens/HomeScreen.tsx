@@ -414,10 +414,11 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
             >
               <Button
                 onClick={handleOneCard}
+                disabled={!subscriptionInfo?.canUseDailyAdvice}
                 className={`w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm ${
                   subscriptionInfo?.canUseDailyAdvice
                     ? 'bg-slate-800/50 hover:bg-slate-700/50 border-amber-400/30 hover:border-amber-400/50 hover:shadow-2xl'
-                    : 'bg-slate-800/30 border-slate-600/30 opacity-60'
+                    : 'bg-slate-800/30 border-slate-600/30 opacity-60 cursor-not-allowed'
                 }`}
               >
                 <div className="flex items-center space-x-6 w-full pl-2">
@@ -470,10 +471,11 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
             >
               <Button
                 onClick={handleYesNo}
+                disabled={!subscriptionInfo?.canUseYesNo}
                 className={`w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm ${
                   subscriptionInfo?.canUseYesNo
                     ? 'bg-slate-800/50 hover:bg-slate-700/50 border-emerald-400/30 hover:border-emerald-400/50 hover:shadow-2xl'
-                    : 'bg-slate-800/30 border-slate-600/30 opacity-60'
+                    : 'bg-slate-800/30 border-slate-600/30 opacity-60 cursor-not-allowed'
                 }`}
               >
                 <div className="flex items-center space-x-6 w-full pl-2">
@@ -526,10 +528,11 @@ export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabC
             >
               <Button
                 onClick={handleThreeCards}
+                disabled={!subscriptionInfo?.canUseThreeCards}
                 className={`w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm ${
                   subscriptionInfo?.canUseThreeCards
                     ? 'bg-slate-800/50 hover:bg-slate-700/50 border-purple-400/30 hover:border-purple-400/50 hover:shadow-2xl'
-                    : 'bg-slate-800/30 border-slate-600/30 opacity-60'
+                    : 'bg-slate-800/30 border-slate-600/30 opacity-60 cursor-not-allowed'
                 }`}
               >
                 <div className="flex items-center space-x-6 w-full pl-2">
