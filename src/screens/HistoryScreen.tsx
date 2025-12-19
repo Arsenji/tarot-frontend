@@ -354,17 +354,15 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
                   <motion.div
                     key={index}
                     className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-4 border border-slate-600/30 shadow-lg"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.6, delay: 0.3 + index * 0.1 }}
                   >
                     <div className="flex items-start space-x-6">
                       <div className="w-24 h-36 rounded-xl overflow-hidden bg-gradient-to-b from-amber-50 to-amber-100 shadow-md border-2 border-amber-400/30 flex-shrink-0">
                         <img
                           src={card.imagePath}
                           alt={card.name}
-                          loading="lazy"
-                          decoding="async"
                           className="w-full h-full object-cover"
                         />
                       </div>
@@ -694,8 +692,6 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
                   <img
                     src={selectedCardDetails.card.imagePath}
                     alt={selectedCardDetails.card.name}
-                    loading="lazy"
-                    decoding="async"
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -740,7 +736,11 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
       {/* Subscription Modal for History */}
       <SubscriptionModal
         isOpen={showSubscriptionModal}
-        onClose={() => setShowSubscriptionModal(false)}
+        onClose={() => {
+          setShowSubscriptionModal(false);
+          // Возвращаемся на главную страницу при закрытии
+          onTabChange('home');
+        }}
         title="Требуется подписка"
         message="Подписка — это ваш доступ к полному функционалу. Оформите её прямо сейчас и продолжайте работу без ограничений."
         showHistoryMessage={false}
