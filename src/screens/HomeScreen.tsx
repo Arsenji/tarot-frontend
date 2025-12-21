@@ -214,9 +214,7 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
                 if (newToken) {
                   localStorage.setItem('authToken', newToken);
                   console.log('✅ Token saved after retry:', newToken.substring(0, 20) + '...');
-                } else {
-                  console.error('❌ Token not found in auth response after retry:', authData);
-                }
+                  
                   // Повторяем запрос с новым токеном
                   const retryController = new AbortController();
                   const retryTimeoutId = setTimeout(() => retryController.abort(), 10000);
@@ -257,8 +255,47 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
                       setIsLoading(false);
                       return;
                     }
+                  } else {
+                    // Ошибка при повторной попытке
+                    setSubscriptionInfo({
+                      hasSubscription: false,
+                      canUseDailyAdvice: false,
+                      canUseYesNo: false,
+                      canUseThreeCards: false,
+                      remainingDailyAdvice: 0,
+                      remainingYesNo: 0,
+                      remainingThreeCards: 0,
+                    });
+                    setIsLoading(false);
+                    return;
                   }
+                } else {
+                  console.error('❌ Token not found in auth response after retry:', authData);
+                  setSubscriptionInfo({
+                    hasSubscription: false,
+                    canUseDailyAdvice: false,
+                    canUseYesNo: false,
+                    canUseThreeCards: false,
+                    remainingDailyAdvice: 0,
+                    remainingYesNo: 0,
+                    remainingThreeCards: 0,
+                  });
+                  setIsLoading(false);
+                  return;
                 }
+              } else {
+                // Не удалось получить новый токен
+                setSubscriptionInfo({
+                  hasSubscription: false,
+                  canUseDailyAdvice: false,
+                  canUseYesNo: false,
+                  canUseThreeCards: false,
+                  remainingDailyAdvice: 0,
+                  remainingYesNo: 0,
+                  remainingThreeCards: 0,
+                });
+                setIsLoading(false);
+                return;
               }
             } catch (err) {
               // Тихая обработка ошибки авторизации

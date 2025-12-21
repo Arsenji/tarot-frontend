@@ -169,9 +169,7 @@ export default function Home() {
                 if (newToken) {
                   localStorage.setItem('authToken', newToken);
                   console.log('✅ Token saved after retry:', newToken.substring(0, 20) + '...');
-                } else {
-                  console.error('❌ Token not found in auth response after retry:', authData);
-                }
+                  
                   // Повторяем запрос с новым токеном
                   const retryController = new AbortController();
                   const retryTimeoutId = setTimeout(() => retryController.abort(), 10000);
@@ -192,6 +190,7 @@ export default function Home() {
                     if (retryError.name !== 'AbortError') {
                       // Тихая обработка ошибки
                     }
+                    showSubscriptionModal();
                     return;
                   }
                   
@@ -210,6 +209,11 @@ export default function Home() {
                     showSubscriptionModal();
                     return;
                   }
+                } else {
+                  console.error('❌ Token not found in auth response after retry:', authData);
+                  // Не удалось получить новый токен - показываем модальное окно
+                  showSubscriptionModal();
+                  return;
                 }
               } else {
                 // Не удалось получить новый токен - показываем модальное окно
