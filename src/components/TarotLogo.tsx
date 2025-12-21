@@ -56,6 +56,13 @@ export const TarotLogo: React.FC<TarotLogoProps> = ({
             height: '100%',
             objectFit: 'cover'
           }}
+          onError={(e) => {
+            // Fallback на placeholder, если изображение не загрузилось
+            const target = e.target as HTMLImageElement;
+            if (target.src !== '/images/placeholder.png') {
+              target.src = '/images/placeholder.png';
+            }
+          }}
         />
       </motion.div>
     );
