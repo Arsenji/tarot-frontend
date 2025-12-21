@@ -64,7 +64,16 @@ interface HomeScreenProps {
 
 export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThreeCards }: HomeScreenProps) => {
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
-  const [subscriptionInfo, setSubscriptionInfo] = useState<any>(null);
+  // Устанавливаем дефолтные значения сразу, чтобы кнопки всегда отображались корректно
+  const [subscriptionInfo, setSubscriptionInfo] = useState<any>({
+    hasSubscription: false,
+    canUseDailyAdvice: false,
+    canUseYesNo: false,
+    canUseThreeCards: false,
+    remainingDailyAdvice: undefined,
+    remainingYesNo: undefined,
+    remainingThreeCards: undefined,
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -228,12 +237,10 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
         <h1 className="text-3xl font-bold mt-4 mb-2 text-center">Таро-бот</h1>
         <p className="text-gray-300 text-center mb-8">Ваш личный проводник в мир Таро</p>
 
-        {subscriptionInfo && (
-          <SubscriptionStatus 
-            subscriptionInfo={subscriptionInfo}
-            onUpgrade={handleOpenSubscriptionModal}
-          />
-        )}
+        <SubscriptionStatus 
+          subscriptionInfo={subscriptionInfo}
+          onUpgrade={handleOpenSubscriptionModal}
+        />
 
         <div className="w-full space-y-4 mt-8">
           <motion.div
@@ -244,7 +251,7 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
             <Button 
               className="w-full h-auto py-4 px-6 bg-purple-700 hover:bg-purple-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleOneCardClick}
-              disabled={!subscriptionInfo?.canUseDailyAdvice && !subscriptionInfo?.hasSubscription && !isLoading}
+              disabled={!subscriptionInfo?.canUseDailyAdvice && !subscriptionInfo?.hasSubscription}
             >
               <div className="flex items-center">
                 <Calendar className="mr-3 h-6 w-6" />
@@ -264,7 +271,7 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
             <Button 
               className="w-full h-auto py-4 px-6 bg-blue-700 hover:bg-blue-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleYesNoClick}
-              disabled={!subscriptionInfo?.canUseYesNo && !subscriptionInfo?.hasSubscription && !isLoading}
+              disabled={!subscriptionInfo?.canUseYesNo && !subscriptionInfo?.hasSubscription}
             >
               <div className="flex items-center">
                 <SparklesIcon className="mr-3 h-6 w-6" />
@@ -284,7 +291,7 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
             <Button 
               className="w-full h-auto py-4 px-6 bg-green-700 hover:bg-green-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleThreeCardsClick}
-              disabled={!subscriptionInfo?.canUseThreeCards && !subscriptionInfo?.hasSubscription && !isLoading}
+              disabled={!subscriptionInfo?.canUseThreeCards && !subscriptionInfo?.hasSubscription}
             >
               <div className="flex items-center">
                 <Crown className="mr-3 h-6 w-6" />
