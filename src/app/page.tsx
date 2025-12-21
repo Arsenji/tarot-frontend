@@ -99,9 +99,32 @@ export default function Home() {
         }
       };
 
-      const token = await getAuthToken();
+      let token = await getAuthToken();
       
-      // Если токен не получен, показываем модальное окно о подписке
+      // Если токена нет, пытаемся получить его через Telegram WebApp
+      if (!token && typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.initData) {
+        const initData = (window as any).Telegram.WebApp.initData;
+        try {
+          const authResponse = await fetch(getApiEndpoint('/auth/telegram'), {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData })
+          });
+          
+          if (authResponse.ok) {
+            const authData = await authResponse.json();
+            token = authData.data?.token || authData.token;
+            if (token) {
+              localStorage.setItem('authToken', token);
+            }
+          }
+        } catch (error) {
+          // Тихая обработка ошибки получения токена
+        }
+      }
+      
+      // Если токен все еще не получен, показываем модальное окно о подписке
       if (!token) {
         // Не делаем запрос без токена, но показываем модальное окно
         showSubscriptionModal();
@@ -136,7 +159,7 @@ export default function Home() {
       
       if (!response || !response.ok) {
         if (response && response.status === 401) {
-          // Тихая обработка 401 - не выводим ошибку в консоль
+          // Тихо обрабатываем 401 - не логируем в консоль, так как это ожидаемо при первом запросе
           // Пытаемся получить новый токен
           const initData = (window as any).Telegram?.WebApp?.initData;
           if (initData) {
