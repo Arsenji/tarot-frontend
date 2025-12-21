@@ -36,7 +36,7 @@ export const TarotLogo: React.FC<TarotLogoProps> = ({
     
     return (
       <motion.div
-        className={`${sizeClasses[size]} bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg relative overflow-hidden`}
+        className={`${sizeClasses[size]} rounded-full flex items-center justify-center shadow-lg relative overflow-hidden`}
         animate={animated ? {
           rotate: [0, 5, -5, 0],
           scale: [1, 1.05, 1],
@@ -50,12 +50,11 @@ export const TarotLogo: React.FC<TarotLogoProps> = ({
         <img
           src="/images/bot-logo.png"
           alt="Bot Logo"
-          className="object-contain"
+          className="w-full h-full object-cover rounded-full"
           style={{ 
-            width: iconSizes[size], 
-            height: iconSizes[size],
-            minWidth: iconSizes[size],
-            minHeight: iconSizes[size]
+            width: '100%', 
+            height: '100%',
+            objectFit: 'cover'
           }}
         />
       </motion.div>

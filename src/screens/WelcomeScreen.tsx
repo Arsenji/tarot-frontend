@@ -185,7 +185,7 @@ export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
               animate={{ scale: 1 }}
               transition={{ duration: 0.8, delay: 1.2, type: "spring", bounce: 0.4 }}
             >
-              <div className="w-24 h-24 mx-auto bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center shadow-2xl relative overflow-hidden">
+              <div className="w-24 h-24 mx-auto rounded-full flex items-center justify-center shadow-2xl relative overflow-hidden">
                 <motion.div
                   className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
                   animate={{ x: ['-100%', '100%'] }}
@@ -194,22 +194,21 @@ export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
                 <img
                   src="/images/bot-logo.png"
                   alt="Bot Logo"
-                  className="relative z-10 object-contain"
+                  className="relative z-10 w-full h-full object-cover rounded-full"
                   style={{ 
-                    width: 40, 
-                    height: 40,
-                    minWidth: 40,
-                    minHeight: 40
+                    width: '100%', 
+                    height: '100%',
+                    objectFit: 'cover'
                   }}
                 />
               </div>
               
               {/* Glow effect */}
               <motion.div
-                className="absolute inset-0 w-24 h-24 mx-auto bg-gradient-to-br from-purple-500/50 to-blue-600/50 rounded-full blur-xl"
+                className="absolute inset-0 w-24 h-24 mx-auto bg-white/20 rounded-full blur-xl"
                 animate={{
                   scale: [1, 1.2, 1],
-                  opacity: [0.5, 0.8, 0.5],
+                  opacity: [0.3, 0.6, 0.3],
                 }}
                 transition={{
                   duration: 2,
