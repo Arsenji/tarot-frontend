@@ -237,10 +237,6 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
         <h1 className="text-3xl font-bold mt-4 mb-2 text-center">Таро-бот</h1>
         <p className="text-gray-300 text-center mb-8">Ваш личный проводник в мир Таро</p>
 
-        <SubscriptionStatus 
-          subscriptionInfo={subscriptionInfo}
-          onUpgrade={handleOpenSubscriptionModal}
-        />
 
         <div className="w-full space-y-4 mt-8">
           <motion.div
