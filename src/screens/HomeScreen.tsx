@@ -289,8 +289,28 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
       
       const data = await response.json();
       
+      // Логируем для отладки
+      console.log('📊 Subscription status response:', {
+        success: data.success,
+        subscriptionInfo: data.subscriptionInfo,
+        fullResponse: data
+      });
+      
       if (data.subscriptionInfo) {
+        console.log('✅ Setting subscription info:', data.subscriptionInfo);
         setSubscriptionInfo(data.subscriptionInfo);
+      } else {
+        console.warn('⚠️ No subscriptionInfo in response:', data);
+        // Устанавливаем дефолтные значения, если данных нет
+        setSubscriptionInfo({
+          hasSubscription: false,
+          canUseDailyAdvice: false,
+          canUseYesNo: false,
+          canUseThreeCards: false,
+          remainingDailyAdvice: 0,
+          remainingYesNo: 0,
+          remainingThreeCards: 0,
+        });
       }
     } catch (error) {
       console.error('Error fetching subscription status:', error);
