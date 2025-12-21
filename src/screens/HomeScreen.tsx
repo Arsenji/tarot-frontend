@@ -11,7 +11,6 @@ import { SubscriptionStatus } from '@/components/SubscriptionStatus';
 import { SubscriptionModal } from '@/components/SubscriptionModal';
 import { apiService } from '@/services/api';
 import { getApiEndpoint } from '@/utils/config';
-import { getValidAuthToken } from '@/utils/auth';
 
 const sparklesData = [
   { left: 10, top: 20, delay: 0, duration: 2.5 },
@@ -55,560 +54,223 @@ const SparklesBackground = () => (
   </div>
 );
 
-const tarotCards = [
-  {
-    src: "/rider-waite-tarot/major_arcana_fool.png",
-    alt: "Шут"
-  },
-  {
-    src: "/rider-waite-tarot/major_arcana_magician.png",
-    alt: "Маг"
-  },
-  {
-    src: "/rider-waite-tarot/major_arcana_priestess.png",
-    alt: "Жрица"
-  },
-  {
-    src: "/rider-waite-tarot/major_arcana_empress.png",
-    alt: "Императрица"
-  },
-  {
-    src: "/rider-waite-tarot/major_arcana_emperor.png",
-    alt: "Император"
-  },
-  {
-    src: "/rider-waite-tarot/major_arcana_lovers.png",
-    alt: "Влюбленные"
-  },
-  {
-    src: "/rider-waite-tarot/major_arcana_chariot.png",
-    alt: "Колесница"
-  },
-  {
-    src: "/rider-waite-tarot/major_arcana_strength.png",
-    alt: "Сила"
-  },
-  {
-    src: "/rider-waite-tarot/major_arcana_hermit.png",
-    alt: "Отшельник"
-  },
-  {
-    src: "/rider-waite-tarot/major_arcana_fortune.png",
-    alt: "Колесо Фортуны"
-  }
-];
-
-interface MainScreenProps {
-  onOneCard: () => void;
-  onThreeCards: () => void;
-  onYesNo: () => void;
+interface HomeScreenProps {
   activeTab: 'home' | 'history';
   onTabChange: (tab: 'home' | 'history') => void;
-  preloadedAuthToken?: string | null; // ⚡ ОПТИМИЗАЦИЯ: Токен предзагружен в page.tsx
+  onOneCard: () => void;
+  onYesNo: () => void;
+  onThreeCards: () => void;
 }
 
-export function MainScreen({ onOneCard, onThreeCards, onYesNo, activeTab, onTabChange, preloadedAuthToken }: MainScreenProps) {
-  // ⚡ OPTIMISTIC UI: Начинаем с предположения что пользователь может всё
-  // Данные загружаются асинхронно и обновляют UI когда приходят
-  const [subscriptionInfo, setSubscriptionInfo] = useState<any>({
-    hasSubscription: true, // Оптимистично считаем что есть подписка
-    canUseDailyAdvice: true,
-    canUseYesNo: true,
-    canUseThreeCards: true,
-  });
-  const [isLoadingSubscription, setIsLoadingSubscription] = useState(false); // НЕ блокируем UI
-  const [showSubscriptionStatus, setShowSubscriptionStatus] = useState(false);
-  const [showTooltip, setShowTooltip] = useState<string | null>(null);
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-  const [subscriptionModalData, setSubscriptionModalData] = useState<{
-    title: string;
-    message: string;
-    showHistoryMessage?: boolean;
-  }>({ title: '', message: '' });
+export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThreeCards }: HomeScreenProps) => {
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+  const [subscriptionInfo, setSubscriptionInfo] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Загружаем информацию о подписке АСИНХРОННО (не блокируя UI)
-    loadSubscriptionInfo();
-  }, [preloadedAuthToken]); // ⚡ Перезагружаем когда токен приходит
+    fetchSubscriptionStatus();
+  }, []);
 
-  const loadSubscriptionInfo = async () => {
+  const fetchSubscriptionStatus = async () => {
+    setIsLoading(true);
     try {
-      console.log('🔄 loadSubscriptionInfo started');
-      setIsLoadingSubscription(true);
-      
-      // ⚡ ОПТИМИЗАЦИЯ: Используем предзагруженный токен из page.tsx
-      let token = preloadedAuthToken;
-      
-      // Если токен еще не пришел, получаем его сами
-      if (!token) {
-        console.log('⏳ Preloaded token not ready, fetching...');
-        token = await getValidAuthToken();
-      } else {
-        console.log('⚡ Using preloaded auth token from page.tsx');
-      }
-      
-      console.log('🔑 Token received:', token ? `${token.substring(0, 20)}...` : 'NULL');
-      
-      if (!token) {
-        console.error('❌ No auth token available');
-        setIsLoadingSubscription(false);
-        return;
-      }
-
-      const endpoint = getApiEndpoint('/tarot/subscription-status');
-      console.log('🌐 Fetching from:', endpoint);
-
       // Используем endpoint для получения статуса подписки
-      const response = await fetch(endpoint, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      
-      console.log('📡 Response status:', response.status);
-      
-      if (!response.ok) {
-        console.error('❌ Response not OK:', response.status, response.statusText);
-        const errorText = await response.text();
-        console.error('Error body:', errorText);
-        
-        // Если 401 - токен невалиден, очищаем и пробуем снова
-        if (response.status === 401) {
-          console.log('🔄 401 Unauthorized - clearing old token and retrying...');
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('tokenExpires');
+      const getAuthToken = async () => {
+        try {
+          let token = localStorage.getItem('authToken');
           
-          // Пробуем получить новый токен и повторить запрос
-          const newToken = await getValidAuthToken();
-          if (newToken) {
-            console.log('🔑 Got new token, retrying request...');
-            const retryResponse = await fetch(endpoint, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${newToken}`,
-              },
+          if (!token && typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.initData) {
+            const initData = (window as any).Telegram.WebApp.initData;
+            
+            const authResponse = await fetch(getApiEndpoint('/auth/telegram'), {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ initData })
             });
             
-            if (retryResponse.ok) {
-              const retryData = await retryResponse.json();
-              if (retryData.subscriptionInfo) {
-                setSubscriptionInfo(retryData.subscriptionInfo);
-                setShowSubscriptionStatus(true);
-              }
-              return;
+            if (authResponse.ok) {
+              const authData = await authResponse.json();
+              token = authData.token;
+              localStorage.setItem('authToken', token);
             }
           }
+          
+          return token;
+        } catch (error) {
+          console.error('Error getting auth token:', error);
+          return null;
         }
-        
-        return;
+      };
+
+      const token = await getAuthToken();
+      
+      const headers: any = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
       }
+
+      const response = await fetch(getApiEndpoint('/tarot/subscription-status'), {
+        method: 'GET',
+        credentials: 'include',
+        headers,
+      });
       
       const data = await response.json();
-      console.log('📊 Subscription data received:', JSON.stringify(data, null, 2));
       
       if (data.subscriptionInfo) {
-        console.log('✅ Setting subscriptionInfo:', data.subscriptionInfo);
-        console.log('   - hasSubscription:', data.subscriptionInfo.hasSubscription);
-        console.log('   - canUseYesNo:', data.subscriptionInfo.canUseYesNo);
-        console.log('   - canUseThreeCards:', data.subscriptionInfo.canUseThreeCards);
-        console.log('   - canUseDailyAdvice:', data.subscriptionInfo.canUseDailyAdvice);
-        
         setSubscriptionInfo(data.subscriptionInfo);
-        setShowSubscriptionStatus(true);
-      } else {
-        console.error('❌ No subscriptionInfo in response');
       }
     } catch (error) {
-      console.error('❌ Error loading subscription info:', error);
+      console.error('Error fetching subscription status:', error);
     } finally {
-      setIsLoadingSubscription(false);
+      setIsLoading(false);
     }
   };
 
-  const showSubscriptionModalForFeature = (feature: string) => {
-    setSubscriptionModalData({
-      title: 'Требуется подписка',
-      message: 'Подписка — это ваш доступ к полному функционалу. Оформите её прямо сейчас и продолжайте работу без ограничений.',
-      showHistoryMessage: false
-    });
-    setShowSubscriptionModal(true);
+  const handleOpenSubscriptionModal = () => {
+    setIsSubscriptionModalOpen(true);
   };
 
-  const handleOneCard = () => {
-    // ⚡ OPTIMISTIC UI: НЕ блокируем клики, позволяем пользователю действовать сразу
-    if (subscriptionInfo?.canUseDailyAdvice) {
+  const handleCloseSubscriptionModal = () => {
+    setIsSubscriptionModalOpen(false);
+  };
+
+  const handleOneCardClick = () => {
+    if (subscriptionInfo?.canUseDailyAdvice || subscriptionInfo?.hasSubscription) {
       onOneCard();
     } else {
-      showSubscriptionModalForFeature('daily');
+      handleOpenSubscriptionModal();
     }
   };
 
-  const handleThreeCards = () => {
-    // ⚡ OPTIMISTIC UI: НЕ блокируем клики, позволяем пользователю действовать сразу
-    if (subscriptionInfo?.canUseThreeCards) {
-      onThreeCards();
-    } else {
-      showSubscriptionModalForFeature('three_cards');
-    }
-  };
-
-  const handleYesNo = () => {
-    // ⚡ OPTIMISTIC UI: НЕ блокируем клики, позволяем пользователю действовать сразу
-    if (subscriptionInfo?.canUseYesNo) {
+  const handleYesNoClick = () => {
+    if (subscriptionInfo?.canUseYesNo || subscriptionInfo?.hasSubscription) {
       onYesNo();
     } else {
-      showSubscriptionModalForFeature('yesno');
+      handleOpenSubscriptionModal();
     }
   };
 
-  const handleUpgradeSubscription = () => {
-    // Открываем Telegram бота для покупки подписки
-    if (typeof window !== 'undefined') {
-      window.open('https://t.me/your_bot_username', '_blank');
+  const handleThreeCardsClick = () => {
+    if (subscriptionInfo?.canUseThreeCards || subscriptionInfo?.hasSubscription) {
+      onThreeCards();
+    } else {
+      handleOpenSubscriptionModal();
     }
   };
 
-  const getRemainingCount = (type: string) => {
-    if (!subscriptionInfo) return 0;
-    
-    switch (type) {
-      case 'daily':
-        return subscriptionInfo.remainingDailyAdvice ?? 0;
-      case 'three_cards':
-        return subscriptionInfo.remainingThreeCards ?? 0;
-      case 'yesno':
-        return subscriptionInfo.remainingYesNo ?? 0;
-      default:
-        return 0;
-    }
+  const getRemainingText = (count: number) => {
+    if (count === -1) return 'Безлимитно';
+    if (count === 0) return 'Использовано';
+    return `Осталось: ${count}`;
   };
-
-  const getRemainingText = (type: string) => {
-    const remaining = getRemainingCount(type);
-    
-    // Если у пользователя есть подписка - не показываем счетчик
-    if (subscriptionInfo?.hasSubscription) return '';
-    
-    // Неограниченно (для бесплатных функций с подпиской)
-    if (remaining === -1) return '';
-    
-    // Использовано
-    if (remaining === 0) return 'Использовано';
-    
-    // Осталось N раскладов
-    return `Осталось: ${remaining}`;
-  };
-
 
   return (
-    <div className="relative h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 overflow-hidden">
-      {/* Background with stars */}
-      {/* Background Gradient Placeholder (загружается мгновенно) */}
-      <div 
-        className="absolute inset-0 opacity-30"
-        style={{
-          background: 'linear-gradient(180deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)',
-        }}
-      />
-      
-      {/* Background Image (оптимизированный размер 640px) */}
-      <div 
-        className="absolute inset-0 opacity-20"
-            style={{
-          backgroundImage: `url(https://images.unsplash.com/photo-1623489956130-64c5f8e84590?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHxzdGFycyUyMG5pZ2h0JTIwc2t5JTIwbWFnaWNhbHxlbnwxfHx8fDE3NTc2NjA3NzR8MA&ixlib=rb-4.1.0&q=80&w=640&utm_source=figma&utm_medium=referral)`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      />
-
-      {/* Floating sparkles */}
+    <div className="relative min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white flex flex-col items-center justify-between pt-20 pb-16">
       <SparklesBackground />
+      <div className="relative z-10 flex flex-col items-center w-full max-w-md px-4">
+        <TarotLogo />
+        <h1 className="text-3xl font-bold mt-4 mb-2 text-center">Таро-бот</h1>
+        <p className="text-gray-300 text-center mb-8">Ваш личный проводник в мир Таро</p>
 
-      {/* Floating Tarot Cards with elegant shadows */}
-      <FloatingCard
-        src={tarotCards[0].src}
-        alt={tarotCards[0].alt}
-        delay={0.5}
-        duration={6}
-        x={5}
-        y={15}
-        rotation={-20}
-        scale={0.6}
-      />
-      <FloatingCard
-        src={tarotCards[1].src}
-        alt={tarotCards[1].alt}
-        delay={1.5}
-        duration={7}
-        x={85}
-        y={25}
-        rotation={25}
-        scale={0.5}
-      />
-      <FloatingCard
-        src={tarotCards[0].src}
-        alt={tarotCards[0].alt}
-        delay={2.5}
-        duration={5.5}
-        x={90}
-        y={65}
-        rotation={-15}
-        scale={0.4}
-      />
+        <SubscriptionStatus 
+          hasSubscription={subscriptionInfo?.hasSubscription} 
+          isExpired={subscriptionInfo?.isExpired}
+          onOpenModal={handleOpenSubscriptionModal}
+          isLoading={isLoading}
+        />
 
-      {/* Main Content Area */}
-      <div className="relative z-10 flex flex-col h-screen">
-        {/* Header */}
-        <motion.div
-          className="flex items-center justify-between px-4 py-6 pt-12"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          {/* Logo and Title */}
+        <div className="w-full space-y-4 mt-8">
           <motion.div
-            className="flex-1 flex items-center space-x-3"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <TarotLogo size="sm" showText={false} animated={true} />
-            <div>
-              <h1 className="text-xl text-white">Выберите расклад</h1>
-              <p className="text-xs text-gray-300">Откройте тайны будущего</p>
-            </div>
-          </motion.div>
-
-        </motion.div>
-
-        {/* Subscription Status */}
-        {showSubscriptionStatus && subscriptionInfo && (
-          <motion.div
-            className="px-4 mb-2"
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            transition={{ delay: 0.2 }}
           >
-            <SubscriptionStatus
-              subscriptionInfo={subscriptionInfo}
-              onUpgrade={handleUpgradeSubscription}
-              compact={true}
-            />
+            <Button 
+              className="w-full h-auto py-4 px-6 bg-purple-700 hover:bg-purple-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold"
+              onClick={handleOneCardClick}
+              disabled={!subscriptionInfo?.canUseDailyAdvice && !subscriptionInfo?.hasSubscription && !isLoading}
+            >
+              <div className="flex items-center">
+                <Calendar className="mr-3 h-6 w-6" />
+                <span>Совет дня</span>
+              </div>
+              <div className="text-sm text-gray-200">
+                {isLoading ? 'Загрузка...' : getRemainingText(subscriptionInfo?.remainingDailyAdvice)}
+              </div>
+            </Button>
           </motion.div>
-        )}
 
-        {/* Reading Options */}
-        <div className="flex-1 flex flex-col items-center justify-start px-6 pt-4 space-y-6">
           <motion.div
-            className="w-full max-w-sm space-y-4"
-            initial={{ opacity: 0, y: 50 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
+            transition={{ delay: 0.3 }}
           >
-            {/* One Card Button */}
-            <motion.div 
-              whileHover={{ scale: subscriptionInfo?.canUseDailyAdvice ? 1.02 : 1 }} 
-              whileTap={{ scale: subscriptionInfo?.canUseDailyAdvice ? 0.98 : 1 }}
-              className="relative"
+            <Button 
+              className="w-full h-auto py-4 px-6 bg-blue-700 hover:bg-blue-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold"
+              onClick={handleYesNoClick}
+              disabled={!subscriptionInfo?.canUseYesNo && !subscriptionInfo?.hasSubscription && !isLoading}
             >
-              <Button
-                onClick={handleOneCard}
-                disabled={!subscriptionInfo?.canUseDailyAdvice}
-                className={`w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm ${
-                  subscriptionInfo?.canUseDailyAdvice
-                    ? 'bg-slate-800/50 hover:bg-slate-700/50 border-amber-400/30 hover:border-amber-400/50 hover:shadow-2xl'
-                    : 'bg-slate-800/30 border-slate-600/30 opacity-60 cursor-not-allowed'
-                }`}
-              >
-                <div className="flex items-center space-x-6 w-full pl-2">
-                  <div className={`p-3 rounded-2xl border flex-shrink-0 ${
-                    subscriptionInfo?.canUseDailyAdvice
-                      ? 'bg-amber-600/20 border-amber-400/30'
-                      : 'bg-slate-600/20 border-slate-500/30'
-                  }`}>
-                    {subscriptionInfo?.canUseDailyAdvice ? (
-                      <SparklesIcon className="w-6 h-6 text-amber-400" />
-                    ) : (
-                      <Lock className="w-6 h-6 text-slate-400" />
-                    )}
-                  </div>
-                          <div className="text-left flex-1">
-                            <div className={`text-lg font-semibold ${
-                              subscriptionInfo?.canUseDailyAdvice ? 'text-white' : 'text-slate-400'
-                            }`}>Одна карта</div>
-                            <div className={`text-sm ${
-                              subscriptionInfo?.canUseDailyAdvice ? 'text-gray-300' : 'text-slate-500'
-                            }`}>Совет дня</div>
-                            {!subscriptionInfo?.hasSubscription && (
-                              <div className="text-xs text-amber-400 mt-1">
-                                {getRemainingText('daily')}
-                              </div>
-                            )}
-                          </div>
+              <div className="flex items-center">
+                <SparklesIcon className="mr-3 h-6 w-6" />
+                <span>Одна карта "Да/Нет"</span>
               </div>
-              </Button>
-              
-              {/* Tooltip */}
-              {showTooltip === 'daily' && (
-                <motion.div
-                  className="absolute -top-16 left-1/2 transform -translate-x-1/2 bg-slate-800/90 text-white text-xs px-3 py-2 rounded-lg border border-slate-600/30 shadow-lg backdrop-blur-sm z-50 max-w-xs text-center"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                >
-                            Подписка — это ваш доступ к полному функционалу. Оформите её прямо сейчас и продолжайте работу без ограничений.
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-800/90"></div>
-                </motion.div>
-              )}
-            </motion.div>
-
-            {/* Yes/No Button */}
-            <motion.div 
-              whileHover={{ scale: subscriptionInfo?.canUseYesNo ? 1.02 : 1 }} 
-              whileTap={{ scale: subscriptionInfo?.canUseYesNo ? 0.98 : 1 }}
-              className="relative"
-            >
-              <Button
-                onClick={handleYesNo}
-                disabled={!subscriptionInfo?.canUseYesNo}
-                className={`w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm ${
-                  subscriptionInfo?.canUseYesNo
-                    ? 'bg-slate-800/50 hover:bg-slate-700/50 border-emerald-400/30 hover:border-emerald-400/50 hover:shadow-2xl'
-                    : 'bg-slate-800/30 border-slate-600/30 opacity-60 cursor-not-allowed'
-                }`}
-              >
-                <div className="flex items-center space-x-6 w-full pl-2">
-                  <div className={`p-3 rounded-2xl border flex-shrink-0 ${
-                    subscriptionInfo?.canUseYesNo
-                      ? 'bg-emerald-600/20 border-emerald-400/30'
-                      : 'bg-slate-600/20 border-slate-500/30'
-                  }`}>
-                    {subscriptionInfo?.canUseYesNo ? (
-                      <HelpCircle className="w-6 h-6 text-emerald-400" />
-                    ) : (
-                      <Lock className="w-6 h-6 text-slate-400" />
-                    )}
-                  </div>
-                          <div className="text-left flex-1">
-                            <div className={`text-lg font-semibold ${
-                              subscriptionInfo?.canUseYesNo ? 'text-white' : 'text-slate-400'
-                            }`}>Да/Нет</div>
-                            <div className={`text-sm ${
-                              subscriptionInfo?.canUseYesNo ? 'text-gray-300' : 'text-slate-500'
-                            }`}>Быстрый ответ</div>
-                            {!subscriptionInfo?.hasSubscription && (
-                              <div className="text-xs text-emerald-400 mt-1">
-                                {getRemainingText('yesno')}
-                              </div>
-                            )}
-                          </div>
+              <div className="text-sm text-gray-200">
+                {isLoading ? 'Загрузка...' : getRemainingText(subscriptionInfo?.remainingYesNo)}
               </div>
-              </Button>
-              
-              {/* Tooltip */}
-              {showTooltip === 'yesno' && (
-                <motion.div
-                  className="absolute -top-16 left-1/2 transform -translate-x-1/2 bg-slate-800/90 text-white text-xs px-3 py-2 rounded-lg border border-slate-600/30 shadow-lg backdrop-blur-sm z-50 max-w-xs text-center"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                >
-                            Подписка — это ваш доступ к полному функционалу. Оформите её прямо сейчас и продолжайте работу без ограничений.
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-800/90"></div>
-                </motion.div>
-              )}
-            </motion.div>
-
-            {/* Three Cards Button */}
-            <motion.div 
-              whileHover={{ scale: subscriptionInfo?.canUseThreeCards ? 1.02 : 1 }} 
-              whileTap={{ scale: subscriptionInfo?.canUseThreeCards ? 0.98 : 1 }}
-              className="relative"
-            >
-              <Button
-                onClick={handleThreeCards}
-                disabled={!subscriptionInfo?.canUseThreeCards}
-                className={`w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm ${
-                  subscriptionInfo?.canUseThreeCards
-                    ? 'bg-slate-800/50 hover:bg-slate-700/50 border-purple-400/30 hover:border-purple-400/50 hover:shadow-2xl'
-                    : 'bg-slate-800/30 border-slate-600/30 opacity-60 cursor-not-allowed'
-                }`}
-              >
-                <div className="flex items-center space-x-6 w-full pl-2">
-                  <div className={`p-3 rounded-2xl border flex-shrink-0 ${
-                    subscriptionInfo?.canUseThreeCards
-                      ? 'bg-purple-600/20 border-purple-400/30'
-                      : 'bg-slate-600/20 border-slate-500/30'
-                  }`}>
-                    {subscriptionInfo?.canUseThreeCards ? (
-                      <Calendar className="w-6 h-6 text-purple-400" />
-                    ) : (
-                      <Lock className="w-6 h-6 text-slate-400" />
-                    )}
-                  </div>
-                          <div className="text-left flex-1">
-                            <div className={`text-lg font-semibold ${
-                              subscriptionInfo?.canUseThreeCards ? 'text-white' : 'text-slate-400'
-                            }`}>Три карты</div>
-                            <div className={`text-sm ${
-                              subscriptionInfo?.canUseThreeCards ? 'text-gray-300' : 'text-slate-500'
-                            }`}>Прошлое–Настоящее–Будущее</div>
-                            {!subscriptionInfo?.hasSubscription && (
-                              <div className="text-xs text-purple-400 mt-1">
-                                {getRemainingText('three_cards')}
-                              </div>
-                            )}
-                          </div>
-            </div>
-              </Button>
-              
-              {/* Tooltip */}
-              {showTooltip === 'three_cards' && (
-                <motion.div
-                  className="absolute -top-16 left-1/2 transform -translate-x-1/2 bg-slate-800/90 text-white text-xs px-3 py-2 rounded-lg border border-slate-600/30 shadow-lg backdrop-blur-sm z-50 max-w-xs text-center"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                >
-                            Подписка — это ваш доступ к полному функционалу. Оформите её прямо сейчас и продолжайте работу без ограничений.
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-800/90"></div>
-                </motion.div>
-              )}
-            </motion.div>
+            </Button>
           </motion.div>
 
-          {/* Mystical decoration */}
           <motion.div
-            className="text-3xl text-amber-400/60 mt-8"
-            initial={{ opacity: 0, rotate: -90 }}
-            animate={{ opacity: 1, rotate: 0 }}
-            transition={{ duration: 1, delay: 1.2 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
           >
-            ✦ ❋ ✦
+            <Button 
+              className="w-full h-auto py-4 px-6 bg-green-700 hover:bg-green-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold"
+              onClick={handleThreeCardsClick}
+              disabled={!subscriptionInfo?.canUseThreeCards && !subscriptionInfo?.hasSubscription && !isLoading}
+            >
+              <div className="flex items-center">
+                <Crown className="mr-3 h-6 w-6" />
+                <span>Расклад на 3 карты</span>
+              </div>
+              <div className="text-sm text-gray-200">
+                {isLoading ? 'Загрузка...' : getRemainingText(subscriptionInfo?.remainingThreeCards)}
+              </div>
+            </Button>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <Button 
+              className="w-full h-auto py-4 px-6 bg-gray-700 hover:bg-gray-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold"
+              onClick={handleOpenSubscriptionModal}
+            >
+              <div className="flex items-center">
+                <Lock className="mr-3 h-6 w-6" />
+                <span>Купить подписку</span>
+              </div>
+              <div className="text-sm text-gray-200">
+                {subscriptionInfo?.hasSubscription ? 'Активна' : 'Не активна'}
+              </div>
+            </Button>
           </motion.div>
         </div>
-
-        {/* Bottom Navigation */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.8 }}
-        >
-        <BottomNavigation activeTab={activeTab} onTabChange={onTabChange} />
-        </motion.div>
       </div>
-
-      {/* Subscription Modal */}
-      <SubscriptionModal
-        isOpen={showSubscriptionModal}
-        onClose={() => setShowSubscriptionModal(false)}
-        title={subscriptionModalData.title}
-        message={subscriptionModalData.message}
-        showHistoryMessage={subscriptionModalData.showHistoryMessage}
+      <BottomNavigation activeTab={activeTab} onTabChange={onTabChange} />
+      <SubscriptionModal 
+        isOpen={isSubscriptionModalOpen} 
+        onClose={handleCloseSubscriptionModal}
+        title="Требуется подписка"
+        message="Подписка — это ваш доступ к полному функционалу. Оформите её прямо сейчас и продолжайте работу без ограничений."
       />
     </div>
   );
-}
+};
 
 export default MainScreen;
