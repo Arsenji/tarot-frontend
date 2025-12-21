@@ -123,10 +123,10 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
         method: 'GET',
         credentials: 'include',
         headers,
-      });
+      }).catch(() => null);
       
-      if (!response.ok) {
-        if (response.status === 401) {
+      if (!response || !response.ok) {
+        if (response && response.status === 401) {
           // Токен невалиден или отсутствует, пытаемся получить новый
           const initData = (window as any).Telegram?.WebApp?.initData;
           if (initData) {
@@ -150,12 +150,13 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
                     headers: {
                       'Authorization': `Bearer ${newToken}`,
                     },
-                  });
+                  }).catch(() => null);
                   
-                  if (retryResponse.ok) {
+                  if (retryResponse && retryResponse.ok) {
                     const retryData = await retryResponse.json();
                     if (retryData.subscriptionInfo) {
                       setSubscriptionInfo(retryData.subscriptionInfo);
+                      return;
                     }
                   }
                 }
@@ -166,6 +167,20 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
           }
         }
         // Устанавливаем дефолтные значения, чтобы кнопки отображались корректно
+        setSubscriptionInfo({
+          hasSubscription: false,
+          canUseDailyAdvice: false,
+          canUseYesNo: false,
+          canUseThreeCards: false,
+          remainingDailyAdvice: 0,
+          remainingYesNo: 0,
+          remainingThreeCards: 0,
+        });
+        return;
+      }
+      
+      if (!response) {
+        // Если запрос не выполнился, устанавливаем дефолтные значения
         setSubscriptionInfo({
           hasSubscription: false,
           canUseDailyAdvice: false,
@@ -222,11 +237,34 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
     }
   };
 
-  const getRemainingText = (count: number | undefined) => {
-    if (count === undefined || count === null) return 'Загрузка...';
-    if (count === -1) return 'Безлимитно';
-    if (count === 0) return 'Использовано';
-    return `Осталось: ${count}`;
+  const getRemainingCount = (type: string) => {
+    if (!subscriptionInfo) return 0;
+    switch (type) {
+      case 'daily':
+        return subscriptionInfo.remainingDailyAdvice ?? 0;
+      case 'three_cards':
+        return subscriptionInfo.remainingThreeCards ?? 0;
+      case 'yesno':
+        return subscriptionInfo.remainingYesNo ?? 0;
+      default:
+        return 0;
+    }
+  };
+
+  const getRemainingText = (type: string) => {
+    const remaining = getRemainingCount(type);
+    
+    // Если у пользователя есть подписка - не показываем счетчик
+    if (subscriptionInfo?.hasSubscription) return '';
+    
+    // Неограниченно (для бесплатных функций с подпиской)
+    if (remaining === -1) return '';
+    
+    // Использовано
+    if (remaining === 0) return 'Использовано';
+    
+    // Осталось N раскладов
+    return `Осталось: ${remaining}`;
   };
 
   return (
@@ -238,82 +276,171 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
         <p className="text-gray-300 text-center mb-8">Ваш личный проводник в мир Таро</p>
 
 
-        <div className="w-full space-y-4 mt-8">
-          <motion.div
+        <div className="w-full max-w-sm space-y-4 mt-8">
+          {/* One Card Button */}
+          <motion.div 
+            whileHover={{ scale: subscriptionInfo?.canUseDailyAdvice || subscriptionInfo?.hasSubscription ? 1.02 : 1 }} 
+            whileTap={{ scale: subscriptionInfo?.canUseDailyAdvice || subscriptionInfo?.hasSubscription ? 0.98 : 1 }}
+            className="relative"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Button 
-              className="w-full h-auto py-4 px-6 bg-purple-700 hover:bg-purple-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            <Button
               onClick={handleOneCardClick}
               disabled={!subscriptionInfo?.canUseDailyAdvice && !subscriptionInfo?.hasSubscription}
+              className={`w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm ${
+                subscriptionInfo?.canUseDailyAdvice || subscriptionInfo?.hasSubscription
+                  ? 'bg-slate-800/50 hover:bg-slate-700/50 border-amber-400/30 hover:border-amber-400/50 hover:shadow-2xl'
+                  : 'bg-slate-800/30 border-slate-600/30 opacity-60'
+              }`}
             >
-              <div className="flex items-center">
-                <Calendar className="mr-3 h-6 w-6" />
-                <span>Совет дня</span>
-              </div>
-              <div className="text-sm text-gray-200">
-                {getRemainingText(subscriptionInfo?.remainingDailyAdvice)}
+              <div className="flex items-center space-x-6 w-full pl-2">
+                <div className={`p-3 rounded-2xl border flex-shrink-0 ${
+                  subscriptionInfo?.canUseDailyAdvice || subscriptionInfo?.hasSubscription
+                    ? 'bg-amber-600/20 border-amber-400/30'
+                    : 'bg-slate-600/20 border-slate-500/30'
+                }`}>
+                  {subscriptionInfo?.canUseDailyAdvice || subscriptionInfo?.hasSubscription ? (
+                    <SparklesIcon className="w-6 h-6 text-amber-400" />
+                  ) : (
+                    <Lock className="w-6 h-6 text-slate-400" />
+                  )}
+                </div>
+                <div className="text-left flex-1">
+                  <div className={`text-lg font-semibold ${
+                    subscriptionInfo?.canUseDailyAdvice || subscriptionInfo?.hasSubscription ? 'text-white' : 'text-slate-400'
+                  }`}>Одна карта</div>
+                  <div className={`text-sm ${
+                    subscriptionInfo?.canUseDailyAdvice || subscriptionInfo?.hasSubscription ? 'text-gray-300' : 'text-slate-500'
+                  }`}>Совет дня</div>
+                  {!subscriptionInfo?.hasSubscription && (
+                    <div className="text-xs text-amber-400 mt-1">
+                      {getRemainingText('daily')}
+                    </div>
+                  )}
+                </div>
               </div>
             </Button>
           </motion.div>
 
-          <motion.div
+          {/* Yes/No Button */}
+          <motion.div 
+            whileHover={{ scale: subscriptionInfo?.canUseYesNo || subscriptionInfo?.hasSubscription ? 1.02 : 1 }} 
+            whileTap={{ scale: subscriptionInfo?.canUseYesNo || subscriptionInfo?.hasSubscription ? 0.98 : 1 }}
+            className="relative"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <Button 
-              className="w-full h-auto py-4 px-6 bg-blue-700 hover:bg-blue-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            <Button
               onClick={handleYesNoClick}
               disabled={!subscriptionInfo?.canUseYesNo && !subscriptionInfo?.hasSubscription}
+              className={`w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm ${
+                subscriptionInfo?.canUseYesNo || subscriptionInfo?.hasSubscription
+                  ? 'bg-slate-800/50 hover:bg-slate-700/50 border-emerald-400/30 hover:border-emerald-400/50 hover:shadow-2xl'
+                  : 'bg-slate-800/30 border-slate-600/30 opacity-60'
+              }`}
             >
-              <div className="flex items-center">
-                <SparklesIcon className="mr-3 h-6 w-6" />
-                <span>Одна карта "Да/Нет"</span>
-              </div>
-              <div className="text-sm text-gray-200">
-                {getRemainingText(subscriptionInfo?.remainingYesNo)}
+              <div className="flex items-center space-x-6 w-full pl-2">
+                <div className={`p-3 rounded-2xl border flex-shrink-0 ${
+                  subscriptionInfo?.canUseYesNo || subscriptionInfo?.hasSubscription
+                    ? 'bg-emerald-600/20 border-emerald-400/30'
+                    : 'bg-slate-600/20 border-slate-500/30'
+                }`}>
+                  {subscriptionInfo?.canUseYesNo || subscriptionInfo?.hasSubscription ? (
+                    <HelpCircle className="w-6 h-6 text-emerald-400" />
+                  ) : (
+                    <Lock className="w-6 h-6 text-slate-400" />
+                  )}
+                </div>
+                <div className="text-left flex-1">
+                  <div className={`text-lg font-semibold ${
+                    subscriptionInfo?.canUseYesNo || subscriptionInfo?.hasSubscription ? 'text-white' : 'text-slate-400'
+                  }`}>Да/Нет</div>
+                  <div className={`text-sm ${
+                    subscriptionInfo?.canUseYesNo || subscriptionInfo?.hasSubscription ? 'text-gray-300' : 'text-slate-500'
+                  }`}>Быстрый ответ</div>
+                  {!subscriptionInfo?.hasSubscription && (
+                    <div className="text-xs text-emerald-400 mt-1">
+                      {getRemainingText('yesno')}
+                    </div>
+                  )}
+                </div>
               </div>
             </Button>
           </motion.div>
 
-          <motion.div
+          {/* Three Cards Button */}
+          <motion.div 
+            whileHover={{ scale: subscriptionInfo?.canUseThreeCards || subscriptionInfo?.hasSubscription ? 1.02 : 1 }} 
+            whileTap={{ scale: subscriptionInfo?.canUseThreeCards || subscriptionInfo?.hasSubscription ? 0.98 : 1 }}
+            className="relative"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
           >
-            <Button 
-              className="w-full h-auto py-4 px-6 bg-green-700 hover:bg-green-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            <Button
               onClick={handleThreeCardsClick}
               disabled={!subscriptionInfo?.canUseThreeCards && !subscriptionInfo?.hasSubscription}
+              className={`w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm ${
+                subscriptionInfo?.canUseThreeCards || subscriptionInfo?.hasSubscription
+                  ? 'bg-slate-800/50 hover:bg-slate-700/50 border-purple-400/30 hover:border-purple-400/50 hover:shadow-2xl'
+                  : 'bg-slate-800/30 border-slate-600/30 opacity-60'
+              }`}
             >
-              <div className="flex items-center">
-                <Crown className="mr-3 h-6 w-6" />
-                <span>Расклад на 3 карты</span>
-              </div>
-              <div className="text-sm text-gray-200">
-                {getRemainingText(subscriptionInfo?.remainingThreeCards)}
+              <div className="flex items-center space-x-6 w-full pl-2">
+                <div className={`p-3 rounded-2xl border flex-shrink-0 ${
+                  subscriptionInfo?.canUseThreeCards || subscriptionInfo?.hasSubscription
+                    ? 'bg-purple-600/20 border-purple-400/30'
+                    : 'bg-slate-600/20 border-slate-500/30'
+                }`}>
+                  {subscriptionInfo?.canUseThreeCards || subscriptionInfo?.hasSubscription ? (
+                    <Calendar className="w-6 h-6 text-purple-400" />
+                  ) : (
+                    <Lock className="w-6 h-6 text-slate-400" />
+                  )}
+                </div>
+                <div className="text-left flex-1">
+                  <div className={`text-lg font-semibold ${
+                    subscriptionInfo?.canUseThreeCards || subscriptionInfo?.hasSubscription ? 'text-white' : 'text-slate-400'
+                  }`}>Три карты</div>
+                  <div className={`text-sm ${
+                    subscriptionInfo?.canUseThreeCards || subscriptionInfo?.hasSubscription ? 'text-gray-300' : 'text-slate-500'
+                  }`}>Прошлое–Настоящее–Будущее</div>
+                  {!subscriptionInfo?.hasSubscription && (
+                    <div className="text-xs text-purple-400 mt-1">
+                      {getRemainingText('three_cards')}
+                    </div>
+                  )}
+                </div>
               </div>
             </Button>
           </motion.div>
 
-          <motion.div
+          {/* Subscription Button */}
+          <motion.div 
+            whileHover={{ scale: 1.02 }} 
+            whileTap={{ scale: 0.98 }}
+            className="relative"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
           >
             <Button 
-              className="w-full h-auto py-4 px-6 bg-gray-700 hover:bg-gray-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold"
+              className="w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm bg-slate-800/50 hover:bg-slate-700/50 border-slate-600/30 hover:border-slate-500/50 hover:shadow-2xl"
               onClick={handleOpenSubscriptionModal}
             >
-              <div className="flex items-center">
-                <Lock className="mr-3 h-6 w-6" />
-                <span>Купить подписку</span>
-              </div>
-              <div className="text-sm text-gray-200">
-                {subscriptionInfo?.hasSubscription ? 'Активна' : 'Не активна'}
+              <div className="flex items-center space-x-6 w-full pl-2">
+                <div className="p-3 rounded-2xl border flex-shrink-0 bg-slate-600/20 border-slate-500/30">
+                  <Lock className="w-6 h-6 text-slate-400" />
+                </div>
+                <div className="text-left flex-1">
+                  <div className="text-lg font-semibold text-white">Купить подписку</div>
+                  <div className="text-sm text-gray-300">
+                    {subscriptionInfo?.hasSubscription ? 'Активна' : 'Не активна'}
+                  </div>
+                </div>
               </div>
             </Button>
           </motion.div>

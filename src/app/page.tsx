@@ -105,10 +105,10 @@ export default function Home() {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
-      });
+      }).catch(() => null);
       
-      if (!response.ok) {
-        if (response.status === 401) {
+      if (!response || !response.ok) {
+        if (response && response.status === 401) {
           // Тихая обработка 401 - не выводим ошибку в консоль
           // Пытаемся получить новый токен
           const initData = (window as any).Telegram?.WebApp?.initData;
@@ -133,9 +133,9 @@ export default function Home() {
                     headers: {
                       'Authorization': `Bearer ${newToken}`,
                     },
-                  });
+                  }).catch(() => null);
                   
-                  if (retryResponse.ok) {
+                  if (retryResponse && retryResponse.ok) {
                     const retryData = await retryResponse.json();
                     if (retryData.subscriptionInfo?.hasSubscription) {
                       setActiveTab('history');
