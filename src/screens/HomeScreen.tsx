@@ -361,7 +361,7 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
       <SparklesBackground />
       <div className="relative z-10 flex flex-col items-center w-full max-w-md px-4">
         <TarotLogo />
-        <h1 className="text-3xl font-bold mt-4 mb-2 text-center">Таро-бот</h1>
+        <h1 className="text-3xl font-bold mt-4 mb-2 text-center">AI-Таролог</h1>
         <p className="text-gray-300 text-center mb-8">Ваш личный проводник в мир Таро</p>
 
 

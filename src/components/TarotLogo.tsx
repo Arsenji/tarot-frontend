@@ -28,7 +28,7 @@ export const TarotLogo: React.FC<TarotLogoProps> = ({
 
   const LogoIcon = () => (
     <motion.div
-      className={`${sizeClasses[size]} bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg`}
+      className={`${sizeClasses[size]} bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg`}
       animate={animated ? {
         rotate: [0, 5, -5, 0],
         scale: [1, 1.05, 1],
@@ -39,7 +39,7 @@ export const TarotLogo: React.FC<TarotLogoProps> = ({
         ease: "easeInOut"
       } : {}}
     >
-      <span className="text-white text-lg font-bold">🔮</span>
+      <span className="text-white text-lg font-bold">🤖</span>
     </motion.div>
   );
 
