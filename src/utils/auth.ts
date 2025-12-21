@@ -98,9 +98,19 @@ export const clearAuthTokens = (): void => {
  * Получение токена с автоматическим обновлением
  */
 export const getValidAuthToken = async (): Promise<string | null> => {
+  // Проверяем валидность токена
   if (!isTokenValid()) {
     clearAuthTokens();
+    // Если токен невалиден, пытаемся получить новый
+    return await getAuthToken();
   }
   
+  // Токен валиден, возвращаем его
+  const token = localStorage.getItem('authToken');
+  if (token) {
+    return token;
+  }
+  
+  // Если токена нет, пытаемся получить новый
   return await getAuthToken();
 };
