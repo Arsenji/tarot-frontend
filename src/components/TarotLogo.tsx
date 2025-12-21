@@ -29,15 +29,15 @@ export const TarotLogo: React.FC<TarotLogoProps> = ({
 
   const LogoIcon = () => {
     const iconSizes = {
-      sm: 16,
-      md: 24,
-      lg: 32,
-      xl: 40
+      sm: 20,
+      md: 28,
+      lg: 36,
+      xl: 44
     };
     
     return (
       <motion.div
-        className={`${sizeClasses[size]} bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg`}
+        className={`${sizeClasses[size]} bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg relative`}
         animate={animated ? {
           rotate: [0, 5, -5, 0],
           scale: [1, 1.05, 1],
@@ -48,7 +48,17 @@ export const TarotLogo: React.FC<TarotLogoProps> = ({
           ease: "easeInOut"
         } : {}}
       >
-        <Bot className="text-white" size={iconSizes[size]} strokeWidth={2.5} />
+        <Bot 
+          className="text-white absolute" 
+          size={iconSizes[size]} 
+          strokeWidth={2.5}
+          style={{ 
+            width: iconSizes[size], 
+            height: iconSizes[size],
+            minWidth: iconSizes[size],
+            minHeight: iconSizes[size]
+          }}
+        />
       </motion.div>
     );
   };
