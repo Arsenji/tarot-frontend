@@ -116,6 +116,48 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
         headers,
       });
       
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Токен невалиден или отсутствует, пытаемся получить новый
+          console.warn('Unauthorized, attempting to get new token');
+          const initData = (window as any).Telegram?.WebApp?.initData;
+          if (initData) {
+            const authResponse = await fetch(getApiEndpoint('/auth/telegram'), {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ initData })
+            });
+            
+            if (authResponse.ok) {
+              const authData = await authResponse.json();
+              const newToken = authData.token;
+              if (newToken) {
+                localStorage.setItem('authToken', newToken);
+                // Повторяем запрос с новым токеном
+                const retryResponse = await fetch(getApiEndpoint('/tarot/subscription-status'), {
+                  method: 'GET',
+                  credentials: 'include',
+                  headers: {
+                    'Authorization': `Bearer ${newToken}`,
+                  },
+                });
+                
+                if (retryResponse.ok) {
+                  const retryData = await retryResponse.json();
+                  if (retryData.subscriptionInfo) {
+                    setSubscriptionInfo(retryData.subscriptionInfo);
+                  }
+                }
+              }
+            }
+          }
+        } else {
+          console.error('Failed to check subscription status:', response.status);
+        }
+        return;
+      }
+      
       const data = await response.json();
       
       if (data.subscriptionInfo) {
@@ -174,12 +216,12 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
         <h1 className="text-3xl font-bold mt-4 mb-2 text-center">Таро-бот</h1>
         <p className="text-gray-300 text-center mb-8">Ваш личный проводник в мир Таро</p>
 
-        <SubscriptionStatus 
-          hasSubscription={subscriptionInfo?.hasSubscription} 
-          isExpired={subscriptionInfo?.isExpired}
-          onOpenModal={handleOpenSubscriptionModal}
-          isLoading={isLoading}
-        />
+        {subscriptionInfo && (
+          <SubscriptionStatus 
+            subscriptionInfo={subscriptionInfo}
+            onUpgrade={handleOpenSubscriptionModal}
+          />
+        )}
 
         <div className="w-full space-y-4 mt-8">
           <motion.div
