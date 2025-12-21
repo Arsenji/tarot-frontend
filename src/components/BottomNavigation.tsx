@@ -15,20 +15,25 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab, onTabCha
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50">
+    <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-auto">
       <div className="bg-slate-800/90 backdrop-blur-md border-t border-slate-700/50 px-4 py-2">
         <div className="flex justify-around">
           {tabs.map((tab) => (
             <motion.button
               key={tab.id}
-              className={`flex flex-col items-center py-2 px-4 rounded-2xl transition-all ${
+              type="button"
+              className={`flex flex-col items-center py-2 px-4 rounded-2xl transition-all cursor-pointer ${
                 activeTab === tab.id
                   ? 'bg-purple-600/20 border border-purple-500/30'
                   : 'hover:bg-slate-700/50'
               }`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => onTabChange(tab.id)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onTabChange(tab.id as 'home' | 'history');
+              }}
             >
               <span className="text-2xl mb-1">{tab.icon}</span>
               <span 

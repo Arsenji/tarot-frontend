@@ -418,32 +418,6 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
             </Button>
           </motion.div>
 
-          {/* Subscription Button */}
-          <motion.div 
-            whileHover={{ scale: 1.02 }} 
-            whileTap={{ scale: 0.98 }}
-            className="relative"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
-            <Button 
-              className="w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm bg-slate-800/50 hover:bg-slate-700/50 border-slate-600/30 hover:border-slate-500/50 hover:shadow-2xl"
-              onClick={handleOpenSubscriptionModal}
-            >
-              <div className="flex items-center space-x-6 w-full pl-2">
-                <div className="p-3 rounded-2xl border flex-shrink-0 bg-slate-600/20 border-slate-500/30">
-                  <Lock className="w-6 h-6 text-slate-400" />
-                </div>
-                <div className="text-left flex-1">
-                  <div className="text-lg font-semibold text-white">Купить подписку</div>
-                  <div className="text-sm text-gray-300">
-                    {subscriptionInfo?.hasSubscription ? 'Активна' : 'Не активна'}
-                  </div>
-                </div>
-              </div>
-            </Button>
-          </motion.div>
         </div>
       </div>
       <BottomNavigation activeTab={activeTab} onTabChange={onTabChange} />
