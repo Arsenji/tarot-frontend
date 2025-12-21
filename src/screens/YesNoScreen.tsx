@@ -91,10 +91,32 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
     setShowValidationError(false);
 
     try {
-      const response = await apiService.getYesNoAnswer(question);
+      const response = await apiService.getYesNoReading(question);
       
       if (response.success && response.data) {
-        setResult(response.data);
+        // Преобразуем формат ответа API в формат, который ожидает компонент
+        const apiData = response.data;
+        const cardImage = apiData.card.isReversed 
+          ? apiData.card.reversedImage 
+          : apiData.card.uprightImage;
+        
+        setResult({
+          question,
+          card: {
+            name: apiData.card.name,
+            imagePath: cardImage || apiData.card.uprightImage,
+            keywords: '',
+            meaning: apiData.card.isReversed 
+              ? apiData.card.reversedInterpretation 
+              : apiData.card.uprightInterpretation,
+            advice: apiData.interpretation,
+            isMajorArcana: apiData.card.category === 'major',
+            suit: apiData.card.category,
+            number: 0,
+          },
+          answer: apiData.answer,
+          interpretation: apiData.interpretation,
+        });
       } else {
         // Проверяем, требуется ли подписка
         
