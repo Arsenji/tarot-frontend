@@ -119,42 +119,53 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
       if (!response.ok) {
         if (response.status === 401) {
           // Токен невалиден или отсутствует, пытаемся получить новый
-          console.warn('Unauthorized, attempting to get new token');
           const initData = (window as any).Telegram?.WebApp?.initData;
           if (initData) {
-            const authResponse = await fetch(getApiEndpoint('/auth/telegram'), {
-              method: 'POST',
-              credentials: 'include',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ initData })
-            });
-            
-            if (authResponse.ok) {
-              const authData = await authResponse.json();
-              const newToken = authData.token;
-              if (newToken) {
-                localStorage.setItem('authToken', newToken);
-                // Повторяем запрос с новым токеном
-                const retryResponse = await fetch(getApiEndpoint('/tarot/subscription-status'), {
-                  method: 'GET',
-                  credentials: 'include',
-                  headers: {
-                    'Authorization': `Bearer ${newToken}`,
-                  },
-                });
-                
-                if (retryResponse.ok) {
-                  const retryData = await retryResponse.json();
-                  if (retryData.subscriptionInfo) {
-                    setSubscriptionInfo(retryData.subscriptionInfo);
+            try {
+              const authResponse = await fetch(getApiEndpoint('/auth/telegram'), {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ initData })
+              });
+              
+              if (authResponse.ok) {
+                const authData = await authResponse.json();
+                const newToken = authData.token;
+                if (newToken) {
+                  localStorage.setItem('authToken', newToken);
+                  // Повторяем запрос с новым токеном
+                  const retryResponse = await fetch(getApiEndpoint('/tarot/subscription-status'), {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                      'Authorization': `Bearer ${newToken}`,
+                    },
+                  });
+                  
+                  if (retryResponse.ok) {
+                    const retryData = await retryResponse.json();
+                    if (retryData.subscriptionInfo) {
+                      setSubscriptionInfo(retryData.subscriptionInfo);
+                    }
                   }
                 }
               }
+            } catch (err) {
+              // Тихая обработка ошибки авторизации
             }
           }
-        } else {
-          console.error('Failed to check subscription status:', response.status);
         }
+        // Устанавливаем дефолтные значения, чтобы кнопки отображались корректно
+        setSubscriptionInfo({
+          hasSubscription: false,
+          canUseDailyAdvice: false,
+          canUseYesNo: false,
+          canUseThreeCards: false,
+          remainingDailyAdvice: 0,
+          remainingYesNo: 0,
+          remainingThreeCards: 0,
+        });
         return;
       }
       
@@ -202,7 +213,8 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
     }
   };
 
-  const getRemainingText = (count: number) => {
+  const getRemainingText = (count: number | undefined) => {
+    if (count === undefined || count === null) return 'Загрузка...';
     if (count === -1) return 'Безлимитно';
     if (count === 0) return 'Использовано';
     return `Осталось: ${count}`;
@@ -230,7 +242,7 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
             transition={{ delay: 0.2 }}
           >
             <Button 
-              className="w-full h-auto py-4 px-6 bg-purple-700 hover:bg-purple-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold"
+              className="w-full h-auto py-4 px-6 bg-purple-700 hover:bg-purple-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleOneCardClick}
               disabled={!subscriptionInfo?.canUseDailyAdvice && !subscriptionInfo?.hasSubscription && !isLoading}
             >
@@ -239,7 +251,7 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
                 <span>Совет дня</span>
               </div>
               <div className="text-sm text-gray-200">
-                {isLoading ? 'Загрузка...' : getRemainingText(subscriptionInfo?.remainingDailyAdvice)}
+                {getRemainingText(subscriptionInfo?.remainingDailyAdvice)}
               </div>
             </Button>
           </motion.div>
@@ -250,7 +262,7 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
             transition={{ delay: 0.3 }}
           >
             <Button 
-              className="w-full h-auto py-4 px-6 bg-blue-700 hover:bg-blue-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold"
+              className="w-full h-auto py-4 px-6 bg-blue-700 hover:bg-blue-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleYesNoClick}
               disabled={!subscriptionInfo?.canUseYesNo && !subscriptionInfo?.hasSubscription && !isLoading}
             >
@@ -259,7 +271,7 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
                 <span>Одна карта "Да/Нет"</span>
               </div>
               <div className="text-sm text-gray-200">
-                {isLoading ? 'Загрузка...' : getRemainingText(subscriptionInfo?.remainingYesNo)}
+                {getRemainingText(subscriptionInfo?.remainingYesNo)}
               </div>
             </Button>
           </motion.div>
@@ -270,7 +282,7 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
             transition={{ delay: 0.4 }}
           >
             <Button 
-              className="w-full h-auto py-4 px-6 bg-green-700 hover:bg-green-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold"
+              className="w-full h-auto py-4 px-6 bg-green-700 hover:bg-green-800 text-white rounded-xl shadow-lg flex items-center justify-between text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleThreeCardsClick}
               disabled={!subscriptionInfo?.canUseThreeCards && !subscriptionInfo?.hasSubscription && !isLoading}
             >
@@ -279,7 +291,7 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
                 <span>Расклад на 3 карты</span>
               </div>
               <div className="text-sm text-gray-200">
-                {isLoading ? 'Загрузка...' : getRemainingText(subscriptionInfo?.remainingThreeCards)}
+                {getRemainingText(subscriptionInfo?.remainingThreeCards)}
               </div>
             </Button>
           </motion.div>
