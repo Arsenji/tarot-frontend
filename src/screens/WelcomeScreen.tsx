@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { FloatingCard } from '@/components/FloatingCard';
 import { TarotLogo } from '@/components/TarotLogo';
-import { Sparkles, Moon, Star } from 'lucide-react';
+import { Sparkles, Moon, Star, Bot } from 'lucide-react';
 
 const tarotCards = [
   {
@@ -185,18 +185,28 @@ export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
               animate={{ scale: 1 }}
               transition={{ duration: 0.8, delay: 1.2, type: "spring", bounce: 0.4 }}
             >
-              <div className="w-24 h-24 mx-auto bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-2xl relative overflow-hidden">
+              <div className="w-24 h-24 mx-auto bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center shadow-2xl relative overflow-hidden">
                 <motion.div
                   className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
                   animate={{ x: ['-100%', '100%'] }}
                   transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
                 />
-                <span className="text-3xl font-bold text-white relative z-10">🔮</span>
+                <Bot 
+                  className="text-white relative z-10" 
+                  size={40} 
+                  strokeWidth={2.5}
+                  style={{ 
+                    width: 40, 
+                    height: 40,
+                    minWidth: 40,
+                    minHeight: 40
+                  }}
+                />
               </div>
               
               {/* Glow effect */}
               <motion.div
-                className="absolute inset-0 w-24 h-24 mx-auto bg-gradient-to-br from-amber-400/50 to-orange-500/50 rounded-full blur-xl"
+                className="absolute inset-0 w-24 h-24 mx-auto bg-gradient-to-br from-purple-500/50 to-blue-600/50 rounded-full blur-xl"
                 animate={{
                   scale: [1, 1.2, 1],
                   opacity: [0.5, 0.8, 0.5],
