@@ -254,7 +254,20 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
       const response = await apiService.getThreeCardsReading(selectedCategory, userQuestion);
       
       if (response.success && response.data) {
-        setApiCards(response.data.cards);
+        // Преобразуем карты из API в формат, который ожидает компонент
+        const apiCards = response.data.cards || [];
+        const transformedCards = apiCards.map((card: any) => ({
+          ...card,
+          // Используем правильное изображение в зависимости от перевернутости
+          image: card.isReversed 
+            ? (card.reversedImage || card.image || card.imagePath)
+            : (card.uprightImage || card.image || card.imagePath),
+          imagePath: card.isReversed 
+            ? (card.reversedImage || card.image || card.imagePath)
+            : (card.uprightImage || card.image || card.imagePath)
+        }));
+        
+        setApiCards(transformedCards);
         setApiInterpretation(response.data.interpretation);
         setCurrentReadingId(response.data.readingId);
         
@@ -541,7 +554,11 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
                         transition={{ duration: 1, delay: index * 0.3 }}
                       >
                         <ImageWithFallback
-                          src={card.image || card.imagePath || '/images/placeholder.png'}
+                          src={
+                            card.isReversed 
+                              ? (card.reversedImage || card.image || card.imagePath || '/images/placeholder.png')
+                              : (card.uprightImage || card.image || card.imagePath || '/images/placeholder.png')
+                          }
                           alt={card.name}
                           className="w-full h-full object-cover"
                         />
