@@ -78,9 +78,12 @@ export default function Home() {
               
               if (authResponse.ok) {
                 const authData = await authResponse.json();
-                token = authData.token;
+                // Токен может быть в authData.token или authData.data.token
+                token = authData.data?.token || authData.token;
                 if (token) {
                   localStorage.setItem('authToken', token);
+                } else {
+                  console.error('Token not found in auth response:', authData);
                 }
               }
             } catch (error) {
