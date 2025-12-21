@@ -98,9 +98,10 @@ export default function Home() {
 
       const token = await getAuthToken();
       
-      // Если токен не получен, не показываем поп-ап, просто остаемся на главной
+      // Если токен не получен, показываем модальное окно о подписке
       if (!token) {
-        // Не делаем запрос без токена, чтобы избежать ошибок в консоли
+        // Не делаем запрос без токена, но показываем модальное окно
+        showSubscriptionModal();
         return;
       }
       
@@ -125,6 +126,8 @@ export default function Home() {
         if (error.name !== 'AbortError') {
           // Тихая обработка ошибки
         }
+        // При ошибке сети показываем модальное окно о подписке
+        showSubscriptionModal();
         return;
       }
       
@@ -189,16 +192,37 @@ export default function Home() {
                     if (retryData.subscriptionInfo?.hasSubscription) {
                       setActiveTab('history');
                       return;
+                    } else {
+                      // После повторной попытки подписки все еще нет - показываем модальное окно
+                      showSubscriptionModal();
+                      return;
                     }
+                  } else {
+                    // Ошибка при повторной попытке - показываем модальное окно
+                    showSubscriptionModal();
+                    return;
                   }
                 }
+              } else {
+                // Не удалось получить новый токен - показываем модальное окно
+                showSubscriptionModal();
+                return;
               }
             } catch (err) {
-              // Тихая обработка ошибки
+              // Тихая обработка ошибки, но показываем модальное окно
+              showSubscriptionModal();
+              return;
             }
+          } else {
+            // Нет initData для получения токена - показываем модальное окно
+            showSubscriptionModal();
+            return;
           }
+        } else {
+          // Другая ошибка (не 401) - показываем модальное окно
+          showSubscriptionModal();
+          return;
         }
-        return;
       }
       
       const data = await response.json();
@@ -207,47 +231,57 @@ export default function Home() {
         // У пользователя есть подписка, переключаемся на историю
         setActiveTab('history');
       } else {
-        // Убеждаемся, что мы остаемся на главной странице
-        setActiveTab('home');
-        
-        // Предотвращаем показ модального окна, если оно уже открыто
-        if (isModalOpen) {
-          return;
-        }
-        
-        setIsModalOpen(true);
-        
         // У пользователя нет подписки, показываем модальное окно
-        // Создаем временное состояние для модального окна
-        const modal = document.createElement('div');
-        modal.id = 'subscription-modal-history';
-        
-        const closeModal = (e?: Event) => {
-          if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
-          
-          // Удаляем модальное окно из DOM
-          if (modal && modal.parentNode) {
-            modal.parentNode.removeChild(modal);
-          }
-          
-          // Очищаем функцию из window
-          delete (window as any).closeModal;
-          
-          // Сбрасываем флаг модального окна
-          setIsModalOpen(false);
-          
-          // Остаемся на главной странице (не переключаемся на history)
-          setActiveTab('home');
-          
-          // Предотвращаем дальнейшие события
-          return false;
-        };
-        
-        // Привязываем функцию закрытия к window для доступа из onclick
-        (window as any).closeModal = closeModal;
+        showSubscriptionModal();
+      }
+    } catch (error) {
+      // При любой ошибке показываем модальное окно о подписке
+      showSubscriptionModal();
+    }
+  };
+
+  const showSubscriptionModal = () => {
+    // Убеждаемся, что мы остаемся на главной странице
+    setActiveTab('home');
+    
+    // Предотвращаем показ модального окна, если оно уже открыто
+    if (isModalOpen) {
+      return;
+    }
+    
+    setIsModalOpen(true);
+    
+    // У пользователя нет подписки, показываем модальное окно
+    // Создаем временное состояние для модального окна
+    const modal = document.createElement('div');
+    modal.id = 'subscription-modal-history';
+    
+    const closeModal = (e?: Event) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      
+      // Удаляем модальное окно из DOM
+      if (modal && modal.parentNode) {
+        modal.parentNode.removeChild(modal);
+      }
+      
+      // Очищаем функцию из window
+      delete (window as any).closeModal;
+      
+      // Сбрасываем флаг модального окна
+      setIsModalOpen(false);
+      
+      // Остаемся на главной странице (не переключаемся на history)
+      setActiveTab('home');
+      
+      // Предотвращаем дальнейшие события
+      return false;
+    };
+    
+    // Привязываем функцию закрытия к window для доступа из onclick
+    (window as any).closeModal = closeModal;
         
         modal.innerHTML = `
           <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 99999; display: flex; align-items: center; justify-content: center; padding: 20px;" id="modal-backdrop">
@@ -311,12 +345,6 @@ export default function Home() {
           }
         };
         document.addEventListener('keydown', handleEscape);
-      }
-    } catch (error) {
-      console.error('Error checking subscription:', error);
-      // В случае ошибки все равно переключаемся на историю
-      setActiveTab('history');
-    }
   };
 
   const renderScreen = () => {
