@@ -34,22 +34,30 @@ export const getAuthToken = async (): Promise<string | null> => {
       
       if (authResponse.ok) {
         const authData = await authResponse.json();
+        console.log('📥 Auth response received:', {
+          hasData: !!authData.data,
+          hasToken: !!authData.token,
+          hasDataToken: !!authData.data?.token,
+          fullResponse: authData
+        });
+        
         // Токен может быть в authData.token или authData.data.token
         token = authData.data?.token || authData.token;
         
         if (token) {
           // Сохраняем токен в localStorage
           localStorage.setItem('authToken', token);
+          console.log('✅ Token saved to localStorage:', token.substring(0, 20) + '...');
           const expires = authData.data?.expires || authData.expires;
           if (expires) {
             localStorage.setItem('tokenExpires', expires.toString());
           }
         } else {
-          console.error('Token not found in auth response:', authData);
+          console.error('❌ Token not found in auth response:', authData);
         }
       } else {
         const errorText = await authResponse.text();
-        console.error('Auth response failed:', authResponse.status, authResponse.statusText, errorText);
+        console.error('❌ Auth response failed:', authResponse.status, authResponse.statusText, errorText);
       }
     }
     
