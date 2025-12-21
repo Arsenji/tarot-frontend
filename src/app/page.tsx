@@ -47,7 +47,7 @@ export default function Home() {
   const handleTabChange = (tab: 'home' | 'history') => {
     // Если пользователь пытается перейти на историю, проверяем подписку
     if (tab === 'history') {
-      // Проверяем подписку через API
+      // Проверяем подписку через API (не блокируем переключение)
       checkSubscriptionForHistory();
     } else {
       setActiveTab(tab);
@@ -66,27 +66,32 @@ export default function Home() {
             // Если токена нет, получаем его через Telegram WebApp
             const initData = (window as any).Telegram.WebApp.initData;
             
-            const authResponse = await fetch(getApiEndpoint('/auth/telegram'), {
-              method: 'POST',
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ initData })
-            });
-            
-            if (authResponse.ok) {
-              const authData = await authResponse.json();
-              token = authData.token;
-              if (token) {
-                localStorage.setItem('authToken', token);
+            try {
+              const authResponse = await fetch(getApiEndpoint('/auth/telegram'), {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ initData })
+              });
+              
+              if (authResponse.ok) {
+                const authData = await authResponse.json();
+                token = authData.token;
+                if (token) {
+                  localStorage.setItem('authToken', token);
+                }
               }
+            } catch (error) {
+              // Тихая обработка ошибки получения токена
+              return null;
             }
           }
           
           return token;
         } catch (error) {
-          console.error('Error getting auth token:', error);
+          // Тихая обработка ошибки
           return null;
         }
       };
@@ -95,17 +100,33 @@ export default function Home() {
       
       // Если токен не получен, не показываем поп-ап, просто остаемся на главной
       if (!token) {
-        console.warn('No auth token available, staying on home page');
+        // Не делаем запрос без токена, чтобы избежать ошибок в консоли
         return;
       }
       
-      const response = await fetch(getApiEndpoint('/tarot/subscription-status'), {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      }).catch(() => null);
+      // Используем AbortController для возможности отмены запроса
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
+      
+      let response: Response | null = null;
+      try {
+        response = await fetch(getApiEndpoint('/tarot/subscription-status'), {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        // Подавляем ошибки сети - не выводим в консоль
+        if (error.name !== 'AbortError') {
+          // Тихая обработка ошибки
+        }
+        return;
+      }
       
       if (!response || !response.ok) {
         if (response && response.status === 401) {
@@ -114,26 +135,54 @@ export default function Home() {
           const initData = (window as any).Telegram?.WebApp?.initData;
           if (initData) {
             try {
-              const authResponse = await fetch(getApiEndpoint('/auth/telegram'), {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ initData })
-              });
+              const authController = new AbortController();
+              const authTimeoutId = setTimeout(() => authController.abort(), 10000);
               
-              if (authResponse.ok) {
+              let authResponse: Response | null = null;
+              try {
+                authResponse = await fetch(getApiEndpoint('/auth/telegram'), {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ initData }),
+                  signal: authController.signal,
+                });
+                clearTimeout(authTimeoutId);
+              } catch (authError: any) {
+                clearTimeout(authTimeoutId);
+                if (authError.name !== 'AbortError') {
+                  // Тихая обработка ошибки
+                }
+                return;
+              }
+              
+              if (authResponse && authResponse.ok) {
                 const authData = await authResponse.json();
                 const newToken = authData.token;
                 if (newToken) {
                   localStorage.setItem('authToken', newToken);
                   // Повторяем запрос с новым токеном
-                  const retryResponse = await fetch(getApiEndpoint('/tarot/subscription-status'), {
-                    method: 'GET',
-                    credentials: 'include',
-                    headers: {
-                      'Authorization': `Bearer ${newToken}`,
-                    },
-                  }).catch(() => null);
+                  const retryController = new AbortController();
+                  const retryTimeoutId = setTimeout(() => retryController.abort(), 10000);
+                  
+                  let retryResponse: Response | null = null;
+                  try {
+                    retryResponse = await fetch(getApiEndpoint('/tarot/subscription-status'), {
+                      method: 'GET',
+                      credentials: 'include',
+                      headers: {
+                        'Authorization': `Bearer ${newToken}`,
+                      },
+                      signal: retryController.signal,
+                    });
+                    clearTimeout(retryTimeoutId);
+                  } catch (retryError: any) {
+                    clearTimeout(retryTimeoutId);
+                    if (retryError.name !== 'AbortError') {
+                      // Тихая обработка ошибки
+                    }
+                    return;
+                  }
                   
                   if (retryResponse && retryResponse.ok) {
                     const retryData = await retryResponse.json();
