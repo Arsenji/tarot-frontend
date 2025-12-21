@@ -117,10 +117,35 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
         }
       };
 
-      const token = await getAuthToken();
+      let token = await getAuthToken();
       
-      // Если токена нет, не делаем запрос, чтобы избежать ошибок в консоли
+      // Если токена нет, пытаемся получить его через Telegram WebApp
+      if (!token && typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.initData) {
+        const initData = (window as any).Telegram.WebApp.initData;
+        try {
+          const authResponse = await fetch(getApiEndpoint('/auth/telegram'), {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData })
+          });
+          
+          if (authResponse.ok) {
+            const authData = await authResponse.json();
+            token = authData.data?.token || authData.token;
+            if (token) {
+              localStorage.setItem('authToken', token);
+              console.log('✅ Token obtained before subscription check');
+            }
+          }
+        } catch (error) {
+          // Тихая обработка ошибки получения токена
+        }
+      }
+      
+      // Если токена все еще нет, не делаем запрос, чтобы избежать ошибок в консоли
       if (!token) {
+        console.warn('⚠️ No token available, skipping subscription status check');
         setSubscriptionInfo({
           hasSubscription: false,
           canUseDailyAdvice: false,
