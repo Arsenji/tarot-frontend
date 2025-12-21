@@ -1,6 +1,5 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Bot } from 'lucide-react';
 
 interface TarotLogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -37,7 +36,7 @@ export const TarotLogo: React.FC<TarotLogoProps> = ({
     
     return (
       <motion.div
-        className={`${sizeClasses[size]} bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg relative`}
+        className={`${sizeClasses[size]} bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg relative overflow-hidden`}
         animate={animated ? {
           rotate: [0, 5, -5, 0],
           scale: [1, 1.05, 1],
@@ -48,10 +47,10 @@ export const TarotLogo: React.FC<TarotLogoProps> = ({
           ease: "easeInOut"
         } : {}}
       >
-        <Bot 
-          className="text-white absolute" 
-          size={iconSizes[size]} 
-          strokeWidth={2.5}
+        <img
+          src="/images/bot-logo.png"
+          alt="Bot Logo"
+          className="object-contain"
           style={{ 
             width: iconSizes[size], 
             height: iconSizes[size],

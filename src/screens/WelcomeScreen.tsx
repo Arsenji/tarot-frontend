@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { FloatingCard } from '@/components/FloatingCard';
 import { TarotLogo } from '@/components/TarotLogo';
-import { Sparkles, Moon, Star, Bot } from 'lucide-react';
+import { Sparkles, Moon, Star } from 'lucide-react';
 
 const tarotCards = [
   {
@@ -191,10 +191,10 @@ export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
                   animate={{ x: ['-100%', '100%'] }}
                   transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
                 />
-                <Bot 
-                  className="text-white relative z-10" 
-                  size={40} 
-                  strokeWidth={2.5}
+                <img
+                  src="/images/bot-logo.png"
+                  alt="Bot Logo"
+                  className="relative z-10 object-contain"
                   style={{ 
                     width: 40, 
                     height: 40,
