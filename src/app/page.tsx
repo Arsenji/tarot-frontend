@@ -164,9 +164,14 @@ export default function Home() {
               
               if (authResponse && authResponse.ok) {
                 const authData = await authResponse.json();
-                const newToken = authData.token;
+                // Токен может быть в authData.token или authData.data.token
+                const newToken = authData.data?.token || authData.token;
                 if (newToken) {
                   localStorage.setItem('authToken', newToken);
+                  console.log('✅ Token saved after retry:', newToken.substring(0, 20) + '...');
+                } else {
+                  console.error('❌ Token not found in auth response after retry:', authData);
+                }
                   // Повторяем запрос с новым токеном
                   const retryController = new AbortController();
                   const retryTimeoutId = setTimeout(() => retryController.abort(), 10000);
