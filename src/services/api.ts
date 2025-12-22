@@ -72,15 +72,6 @@ export interface TarotReading {
 }
 
 // Другие интерфейсы остаются без изменений...
-export interface CardData {
-  name: string;
-  imagePath: string;
-  meaning: string;
-  advice: string;
-  keywords: string;
-  detailedDescription?: string;
-}
-
 interface TarotCard {
   name: string;
   category: string;
@@ -107,6 +98,7 @@ class ApiService {
       const token = await getValidAuthToken();
       
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -210,23 +202,24 @@ class ApiService {
     });
   }
 
-  async getYesNoAnswer(question: string): Promise<ApiResponse<YesNoResult>> {
-    return this.request<YesNoResult>('/api/tarot/yes-no', {
-      method: 'POST',
-      body: JSON.stringify({ question }),
-    });
-  }
-
   async getClarifyingAnswer(
-    question: string,
-    card: TarotCard,
-    interpretation: string,
-    category: string,
+    clarifyingQuestion: string,
+    originalCard: any,
+    originalInterpretation: string,
+    readingType: string,
     readingId?: string
-  ): Promise<ApiResponse<{ answer: string; card: TarotCard }>> {
-    return this.request<{ answer: string; card: TarotCard }>('/api/tarot/clarifying-answer', {
+  ): Promise<ApiResponse<{ answer: string; yesNoAnswer?: 'Да' | 'Нет'; card?: any }>> {
+    // Нужно получить оригинальный вопрос из контекста или передать его отдельно
+    // Пока используем clarifyingQuestion как оригинальный вопрос для контекста
+    return this.request<{ answer: string; yesNoAnswer?: 'Да' | 'Нет'; card?: any }>('/api/tarot/clarifying-question', {
       method: 'POST',
-      body: JSON.stringify({ question, card, interpretation, category, readingId }),
+      body: JSON.stringify({
+        clarifyingQuestion,
+        originalQuestion: clarifyingQuestion, // TODO: нужно передавать оригинальный вопрос из контекста
+        originalCard,
+        originalInterpretation,
+        readingType
+      }),
     });
   }
 }

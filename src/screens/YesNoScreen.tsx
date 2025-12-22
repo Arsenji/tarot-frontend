@@ -184,37 +184,40 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
     try {
       console.log('Sending clarifying question:', questionText);
       console.log('Card data:', result.card);
+      console.log('Original question:', result.question);
       
       // Используем API для получения ответа от ChatGPT
+      const originalQuestion = result.question || question;
       const response = await apiService.getClarifyingAnswer(
         questionText,
         result.card,
         result.interpretation,
         'yesno',
-        result.readingId // Передаем ID текущего расклада
+        result.readingId,
+        originalQuestion // Передаем оригинальный вопрос
       );
 
       console.log('API Response:', response);
+      console.log('Response success:', response.success);
       console.log('Response data:', response.data);
-      console.log('Response data type:', typeof response.data);
-      console.log('Response data keys:', response.data ? Object.keys(response.data) : 'no data');
 
-      // Проверяем структуру ответа более детально
+      // Проверяем структуру ответа
       let answer = 'Карты говорят, что ответ на ваш уточняющий вопрос требует более глубокого размышления.';
       let clarifyingCard = result.card; // Используем карту из основного результата по умолчанию
       
       if (response.success && response.data) {
+        // Ответ может быть в response.data.answer или response.data.data.answer
         if (response.data.answer) {
           answer = response.data.answer;
-          // Если в ответе есть карта, используем её, иначе используем карту из основного результата
           clarifyingCard = response.data.card || result.card;
         } else if (response.data.data && response.data.data.answer) {
-          // Возможно, ответ вложен глубже
           answer = response.data.data.answer;
           clarifyingCard = response.data.data.card || result.card;
         } else {
           console.error('Answer not found in response data:', response.data);
         }
+      } else {
+        console.error('API request failed:', response.error);
       }
 
       console.log('Final answer:', answer);
