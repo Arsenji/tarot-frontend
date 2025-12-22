@@ -101,6 +101,10 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
           ? apiData.card.reversedImage 
           : apiData.card.uprightImage;
         
+        // Нормализуем ответ: приводим к верхнему регистру для единообразия
+        const normalizedAnswer = apiData.answer ? apiData.answer.toUpperCase().trim() : 'НЕТ';
+        const finalAnswer = normalizedAnswer.includes('ДА') || normalizedAnswer.startsWith('ДА') ? 'ДА' : 'НЕТ';
+        
         setResult({
           question,
           card: {
@@ -115,7 +119,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
             suit: apiData.card.category,
             number: 0,
           },
-          answer: apiData.answer,
+          answer: finalAnswer,
           interpretation: apiData.interpretation,
         });
       } else {
