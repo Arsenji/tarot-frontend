@@ -207,15 +207,14 @@ class ApiService {
     originalCard: any,
     originalInterpretation: string,
     readingType: string,
-    readingId?: string
+    readingId?: string,
+    originalQuestion?: string
   ): Promise<ApiResponse<{ answer: string; yesNoAnswer?: 'Да' | 'Нет'; card?: any }>> {
-    // Нужно получить оригинальный вопрос из контекста или передать его отдельно
-    // Пока используем clarifyingQuestion как оригинальный вопрос для контекста
     return this.request<{ answer: string; yesNoAnswer?: 'Да' | 'Нет'; card?: any }>('/api/tarot/clarifying-question', {
       method: 'POST',
       body: JSON.stringify({
         clarifyingQuestion,
-        originalQuestion: clarifyingQuestion, // TODO: нужно передавать оригинальный вопрос из контекста
+        originalQuestion: originalQuestion || clarifyingQuestion, // Используем переданный оригинальный вопрос
         originalCard,
         originalInterpretation,
         readingType
