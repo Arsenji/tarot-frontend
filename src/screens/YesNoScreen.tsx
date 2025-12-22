@@ -482,7 +482,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                 {/* Answer */}
                 <motion.div
                   className={`text-center p-6 rounded-2xl border-2 ${
-                    result.answer === 'ДА'
+                    result.answer.toUpperCase().includes('ДА') || result.answer.toUpperCase().startsWith('ДА')
                       ? 'bg-green-900/30 border-green-400/30'
                       : 'bg-red-900/30 border-red-400/30'
                   }`}
@@ -491,10 +491,10 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                   transition={{ duration: 0.5, delay: 0.8 }}
                 >
                   <div className="text-4xl mb-2">
-                    {result.answer === 'ДА' ? '✅' : '❌'}
+                    {result.answer.toUpperCase().includes('ДА') || result.answer.toUpperCase().startsWith('ДА') ? '✅' : '❌'}
                   </div>
                   <h2 className={`text-3xl font-bold mb-2 ${
-                    result.answer === 'ДА' ? 'text-green-400' : 'text-red-400'
+                    result.answer.toUpperCase().includes('ДА') || result.answer.toUpperCase().startsWith('ДА') ? 'text-green-400' : 'text-red-400'
                   }`}>
                     {result.answer}
                   </h2>
