@@ -210,11 +210,14 @@ class ApiService {
     readingId?: string,
     originalQuestion?: string
   ): Promise<ApiResponse<{ answer: string; yesNoAnswer?: 'Да' | 'Нет'; card?: any }>> {
+    // Убеждаемся, что originalQuestion всегда передается
+    const finalOriginalQuestion = originalQuestion || clarifyingQuestion;
+    
     return this.request<{ answer: string; yesNoAnswer?: 'Да' | 'Нет'; card?: any }>('/api/tarot/clarifying-question', {
       method: 'POST',
       body: JSON.stringify({
         clarifyingQuestion,
-        originalQuestion: originalQuestion || clarifyingQuestion, // Используем переданный оригинальный вопрос
+        originalQuestion: finalOriginalQuestion,
         originalCard,
         originalInterpretation,
         readingType
