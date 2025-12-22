@@ -42,6 +42,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
     question: string;
     answer?: string;
     card?: any;
+    yesNoAnswer?: 'Да' | 'Нет' | null;
     isLoading?: boolean;
   }>>([]);
   const [showClarifyingInput, setShowClarifyingInput] = useState(false);
@@ -204,15 +205,18 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
       // Проверяем структуру ответа
       let answer = 'Карты говорят, что ответ на ваш уточняющий вопрос требует более глубокого размышления.';
       let clarifyingCard = result.card; // Используем карту из основного результата по умолчанию
+      let yesNoAnswer: 'Да' | 'Нет' | null = null;
       
       if (response.success && response.data) {
         // Ответ может быть в response.data.answer или response.data.data.answer
         if (response.data.answer) {
           answer = response.data.answer;
           clarifyingCard = response.data.card || result.card;
+          yesNoAnswer = response.data.yesNoAnswer || null;
         } else if (response.data.data && response.data.data.answer) {
           answer = response.data.data.answer;
           clarifyingCard = response.data.data.card || result.card;
+          yesNoAnswer = response.data.data.yesNoAnswer || null;
         } else {
           console.error('Answer not found in response data:', response.data);
         }
@@ -220,14 +224,25 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
         console.error('API request failed:', response.error);
       }
 
+      // Если yesNoAnswer не получен из API, извлекаем его из текста ответа
+      if (!yesNoAnswer && answer) {
+        const firstLine = answer.split('\n')[0].trim().toUpperCase();
+        if (firstLine.includes('НЕТ') || firstLine.startsWith('НЕТ')) {
+          yesNoAnswer = 'Нет';
+        } else if (firstLine.includes('ДА') || firstLine.startsWith('ДА')) {
+          yesNoAnswer = 'Да';
+        }
+      }
+
       console.log('Final answer:', answer);
       console.log('Clarifying card:', clarifyingCard);
+      console.log('Yes/No answer:', yesNoAnswer);
 
       // Обновляем вопрос с полученным ответом и картой
       setClarifyingQuestions(prev => 
         prev.map((q, index) => 
           index === prev.length - 1 
-            ? { ...q, answer, card: clarifyingCard, isLoading: false }
+            ? { ...q, answer, card: clarifyingCard, yesNoAnswer, isLoading: false }
             : q
         )
       );
@@ -611,7 +626,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                               {/* Answer */}
                               <motion.div
                                 className={`text-center p-6 rounded-2xl border-2 ${
-                                  item.answer.split('\n')[0] === 'ДА'
+                                  (item.yesNoAnswer === 'Да' || (item.answer && item.answer.split('\n')[0].toUpperCase().includes('ДА')))
                                     ? 'bg-green-900/30 border-green-400/30'
                                     : 'bg-red-900/30 border-red-400/30'
                                 }`}
@@ -620,12 +635,14 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                                 transition={{ duration: 0.5, delay: 0.8 }}
                               >
                                 <div className="text-4xl mb-2">
-                                  {item.answer.split('\n')[0] === 'ДА' ? '✅' : '❌'}
+                                  {(item.yesNoAnswer === 'Да' || (item.answer && item.answer.split('\n')[0].toUpperCase().includes('ДА'))) ? '✅' : '❌'}
                                 </div>
                                 <h2 className={`text-3xl font-bold mb-2 ${
-                                  item.answer.split('\n')[0] === 'ДА' ? 'text-green-400' : 'text-red-400'
+                                  (item.yesNoAnswer === 'Да' || (item.answer && item.answer.split('\n')[0].toUpperCase().includes('ДА')))
+                                    ? 'text-green-400' 
+                                    : 'text-red-400'
                                 }`}>
-                                  {item.answer.split('\n')[0]}
+                                  {item.yesNoAnswer || (item.answer ? item.answer.split('\n')[0] : 'Нет')}
                                 </h2>
                               </motion.div>
 
