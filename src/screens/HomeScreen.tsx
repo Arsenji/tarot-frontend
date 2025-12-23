@@ -368,15 +368,15 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
         setSubscriptionInfo(data.subscriptionInfo);
       } else {
         console.warn('⚠️ No subscriptionInfo in response:', data);
-        // Устанавливаем дефолтные значения, если данных нет
+        // Устанавливаем дефолтные значения, если данных нет (разрешаем доступ)
         setSubscriptionInfo({
           hasSubscription: false,
-          canUseDailyAdvice: false,
-          canUseYesNo: false,
-          canUseThreeCards: false,
-          remainingDailyAdvice: 0,
-          remainingYesNo: 0,
-          remainingThreeCards: 0,
+          canUseDailyAdvice: true, // Разрешаем по умолчанию
+          canUseYesNo: true, // Разрешаем по умолчанию
+          canUseThreeCards: true, // Разрешаем по умолчанию
+          remainingDailyAdvice: -1, // -1 означает неограниченно
+          remainingYesNo: -1, // -1 означает неограниченно
+          remainingThreeCards: -1, // -1 означает неограниченно
         });
       }
     } catch (error) {
