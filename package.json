@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "node .next/standalone/server.js",
-    "start:fallback": "next start -p $PORT",
+    "start": "PORT=${PORT:-10000} node .next/standalone/server.js",
+    "start:fallback": "next start -p ${PORT:-10000}",
     "lint": "next lint"
   },
   "dependencies": {
