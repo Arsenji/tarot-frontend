@@ -67,12 +67,12 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
   // Устанавливаем дефолтные значения сразу, чтобы кнопки всегда отображались корректно
   const [subscriptionInfo, setSubscriptionInfo] = useState<any>({
     hasSubscription: false,
-    canUseDailyAdvice: false,
-    canUseYesNo: false,
-    canUseThreeCards: false,
-    remainingDailyAdvice: undefined,
-    remainingYesNo: undefined,
-    remainingThreeCards: undefined,
+    canUseDailyAdvice: true, // По умолчанию разрешаем, пока не получим ответ от сервера
+    canUseYesNo: true, // По умолчанию разрешаем, пока не получим ответ от сервера
+    canUseThreeCards: true, // По умолчанию разрешаем, пока не получим ответ от сервера
+    remainingDailyAdvice: -1, // -1 означает неограниченно
+    remainingYesNo: -1, // -1 означает неограниченно
+    remainingThreeCards: -1, // -1 означает неограниченно
   });
   const [isLoading, setIsLoading] = useState(true);
 
