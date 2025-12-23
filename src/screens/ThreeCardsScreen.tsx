@@ -307,7 +307,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
       <div 
         className="absolute inset-0 opacity-20"
             style={{
-          backgroundImage: `url(https://images.unsplash.com/photo-1623489956130-64c5f8e84590?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdGFycyUyMG5pZ2h0JTIwc2t5JTIwbWFnaWNhbHxlbnwxfHx8fDE3NTc2NjA3NzR8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral)`,
+          // Убрана ссылка на unsplash для избежания таймаутов
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
