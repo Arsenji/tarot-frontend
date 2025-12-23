@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  // Убрано output: 'standalone' для совместимости с Render.com
+  // output: 'standalone',
   images: {
     domains: ['localhost'],
   },

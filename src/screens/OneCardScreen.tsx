@@ -2,7 +2,6 @@
 
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '@/components/ui/button';
-import { FloatingCard } from '@/components/FloatingCard';
 import { ArrowLeft, Sparkles, RefreshCw } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
