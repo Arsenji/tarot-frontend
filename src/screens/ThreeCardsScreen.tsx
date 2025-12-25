@@ -1,8 +1,8 @@
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FloatingCard } from '@/components/FloatingCard';
-import { ArrowLeft, Heart, Briefcase, Star, Sparkles } from 'lucide-react';
+import { ArrowLeft, Heart, Briefcase, Star, Sparkles, AlertCircle } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { apiService } from '@/services/api';
@@ -143,8 +143,39 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
   }>>([]);
   const [showClarifyingInput, setShowClarifyingInput] = useState(false);
   const [currentClarifyingQuestion, setCurrentClarifyingQuestion] = useState('');
+  const [showValidationError, setShowValidationError] = useState(false);
 
   const selectedCategoryData = categories.find(cat => cat.id === selectedCategory);
+
+  // Валидация вопроса
+  const validateQuestion = (text: string): boolean => {
+    const trimmedText = text.trim();
+    
+    // Проверяем базовые условия
+    if (trimmedText.length === 0 || !trimmedText.endsWith('?')) {
+      return false;
+    }
+    
+    // Проверяем на осмысленность - должны быть русские или английские слова
+    const hasValidWords = /[а-яёА-ЯЁa-zA-Z]{2,}/.test(trimmedText);
+    if (!hasValidWords) {
+      return false;
+    }
+    
+    // Проверяем, что это не только знаки препинания и пробелы
+    const meaningfulChars = trimmedText.replace(/[^\wа-яёА-ЯЁ]/g, '').length;
+    if (meaningfulChars < 3) {
+      return false;
+    }
+    
+    // Проверяем, что есть хотя бы одно слово длиннее 2 символов
+    const words = trimmedText.split(/\s+/).filter(word => word.length > 2);
+    if (words.length === 0) {
+      return false;
+    }
+    
+    return true;
+  };
 
   // Статический массив звезд для предотвращения мигания
   const sparklesData = useMemo(() => {
@@ -243,12 +274,19 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
   const startReading = async () => {
     if (!selectedCategory || !userQuestion.trim()) return;
 
+    // Валидация вопроса
+    if (!validateQuestion(userQuestion)) {
+      setShowValidationError(true);
+      return;
+    }
+
     setIsReading(true);
     setIsLoading(true);
     setIsShuffling(true);
     setShowCards(false);
     setRevealedCards([]);
     setError('');
+    setShowValidationError(false);
     
     try {
       const response = await apiService.getThreeCardsReading(selectedCategory, userQuestion);
@@ -912,7 +950,45 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
             </motion.div>
           </motion.div>
         )}
-      </div>
+      </AnimatePresence>
+
+      {/* Модальное окно ошибки валидации */}
+      <AnimatePresence>
+        {showValidationError && (
+          <motion.div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowValidationError(false)}
+          >
+            <motion.div
+              className="bg-slate-800/90 backdrop-blur-sm rounded-2xl p-6 max-w-sm w-full border border-slate-600/30 shadow-2xl"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center space-x-3 mb-4">
+                <AlertCircle className="w-6 h-6 text-amber-400" />
+                <h3 className="text-lg text-white font-medium">Неверный формат вопроса</h3>
+              </div>
+              <p className="text-gray-300 mb-6">
+                Пожалуйста, сформулируйте осмысленный вопрос, который заканчивается знаком вопроса (?). 
+                Вопрос должен содержать реальные слова и быть понятным.
+                <br /><br />
+                Например: "Стоит ли мне принять это предложение?"
+              </p>
+              <Button
+                onClick={() => setShowValidationError(false)}
+                className="w-full bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-400/30 rounded-lg"
+              >
+                Понятно
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
