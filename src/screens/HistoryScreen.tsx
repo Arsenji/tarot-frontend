@@ -99,19 +99,27 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
     try {
       setLoading(true);
       setError(null);
+      console.log('📚 Loading history...');
       const response = await apiService.getHistory();
+      console.log('📚 History response:', response);
+      console.log('📚 Response success:', response.success);
+      console.log('📚 Response data:', response.data);
+      console.log('📚 Response data.readings:', response.data?.readings);
       
       if (response.success && response.data) {
-        setHistory(response.data.readings || []);
+        const readings = response.data.readings || [];
+        console.log('📚 Setting history with readings:', readings.length);
+        setHistory(readings);
       } else if (response.subscriptionRequired) {
         // Показываем модальное окно подписки для истории
         setShowSubscriptionModal(true);
         setError('История доступна только по подписке');
       } else {
-        setError('Не удалось загрузить историю');
+        console.error('📚 History load failed:', response.error);
+        setError(response.error || 'Не удалось загрузить историю');
       }
     } catch (err) {
-      console.error('Error loading history:', err);
+      console.error('📚 Error loading history:', err);
       setError('Ошибка при загрузке истории');
     } finally {
       setLoading(false);

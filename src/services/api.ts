@@ -115,12 +115,23 @@ class ApiService {
       }
 
       const serverResponse = await response.json();
+      console.log('📥 Raw server response:', serverResponse);
       
       // Если сервер возвращает структуру { success: true, data: ... }, извлекаем data
       if (serverResponse.success && serverResponse.data) {
         return { 
           success: true, 
           data: serverResponse.data,
+          subscriptionRequired: serverResponse.subscriptionRequired,
+          subscriptionInfo: serverResponse.subscriptionInfo
+        };
+      }
+
+      // Если сервер возвращает { success: true, readings: ... } (для истории)
+      if (serverResponse.success && serverResponse.readings) {
+        return { 
+          success: true, 
+          data: { readings: serverResponse.readings } as T,
           subscriptionRequired: serverResponse.subscriptionRequired,
           subscriptionInfo: serverResponse.subscriptionInfo
         };
@@ -188,7 +199,9 @@ class ApiService {
   }
 
   async getHistory(): Promise<ApiResponse<{ readings: TarotReading[] }>> {
-    return this.request<{ readings: TarotReading[] }>('/api/tarot/history');
+    const response = await this.request<{ readings: TarotReading[] }>('/api/tarot/history');
+    console.log('📚 History API response:', response);
+    return response;
   }
 
   async getSubscriptionStatus(userId: string): Promise<ApiResponse<{ subscriptionInfo: any }>> {
