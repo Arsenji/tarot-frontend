@@ -102,9 +102,21 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
       if (response.success && response.data) {
         // Преобразуем формат ответа API в формат, который ожидает компонент
         const apiData = response.data;
-        const cardImage = apiData.card.isReversed 
-          ? apiData.card.reversedImage 
-          : apiData.card.uprightImage;
+        
+        // Используем imagePath если он есть, иначе выбираем по isReversed
+        let cardImage = apiData.card.imagePath;
+        if (!cardImage) {
+          cardImage = apiData.card.isReversed 
+            ? apiData.card.reversedImage 
+            : apiData.card.uprightImage;
+        }
+        // Если все еще нет, используем image или uprightImage как fallback
+        if (!cardImage) {
+          cardImage = apiData.card.image || apiData.card.uprightImage;
+        }
+        
+        console.log('Card image path:', cardImage);
+        console.log('Card data:', apiData.card);
         
         // Нормализуем ответ: приводим к верхнему регистру для единообразия
         const normalizedAnswer = apiData.answer ? apiData.answer.toUpperCase().trim() : 'НЕТ';
@@ -114,7 +126,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
           question,
           card: {
             name: apiData.card.name,
-            imagePath: cardImage || apiData.card.uprightImage,
+            imagePath: cardImage,
             keywords: '',
             meaning: apiData.card.isReversed 
               ? apiData.card.reversedInterpretation 
