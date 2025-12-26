@@ -16,6 +16,18 @@ const nextConfig = {
     // Отключаем проверку типов во время сборки для Render.com
     ignoreBuildErrors: true,
   },
+  // Настройки для обработки ошибок загрузки чанков
+  onDemandEntries: {
+    // Период в мс, в течение которого страницы остаются в памяти
+    maxInactiveAge: 25 * 1000,
+    // Количество страниц, которые должны одновременно оставаться в памяти
+    pagesBufferLength: 2,
+  },
+  // Отключаем агрессивное кеширование для статических чанков
+  generateBuildId: async () => {
+    // Используем timestamp для уникальности сборки
+    return `build-${Date.now()}`;
+  },
 }
 
 module.exports = nextConfig
