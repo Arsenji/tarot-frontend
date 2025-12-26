@@ -118,9 +118,21 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
         console.log('Card image path:', cardImage);
         console.log('Card data:', apiData.card);
         
-        // Нормализуем ответ: приводим к верхнему регистру для единообразия
-        const normalizedAnswer = apiData.answer ? apiData.answer.toUpperCase().trim() : 'НЕТ';
-        const finalAnswer = normalizedAnswer.includes('ДА') || normalizedAnswer.startsWith('ДА') ? 'ДА' : 'НЕТ';
+        // Определяем ответ "Да" или "Нет" из API ответа
+        // Берем первую строку ответа для определения
+        let finalAnswer = 'НЕТ';
+        let yesNoAnswer: 'Да' | 'Нет' = 'Нет';
+        
+        if (apiData.answer) {
+          const firstLine = apiData.answer.split('\n')[0].trim().toUpperCase();
+          if (firstLine === 'ДА' || firstLine.startsWith('ДА')) {
+            finalAnswer = 'ДА';
+            yesNoAnswer = 'Да';
+          } else if (firstLine === 'НЕТ' || firstLine.startsWith('НЕТ')) {
+            finalAnswer = 'НЕТ';
+            yesNoAnswer = 'Нет';
+          }
+        }
         
         setResult({
           question,
@@ -137,6 +149,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
             number: 0,
           },
           answer: finalAnswer,
+          yesNoAnswer: yesNoAnswer, // Добавляем поле для точного определения
           interpretation: apiData.interpretation,
         });
       } else {
@@ -499,7 +512,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                 {/* Answer */}
                 <motion.div
                   className={`text-center p-6 rounded-2xl border-2 ${
-                    result.answer.toUpperCase().includes('ДА') || result.answer.toUpperCase().startsWith('ДА')
+                    (result.yesNoAnswer === 'Да' || result.answer.toUpperCase().trim() === 'ДА')
                       ? 'bg-green-900/30 border-green-400/30'
                       : 'bg-red-900/30 border-red-400/30'
                   }`}
@@ -508,12 +521,12 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                   transition={{ duration: 0.5, delay: 0.8 }}
                 >
                   <div className="text-4xl mb-2">
-                    {result.answer.toUpperCase().includes('ДА') || result.answer.toUpperCase().startsWith('ДА') ? '✅' : '❌'}
+                    {(result.yesNoAnswer === 'Да' || result.answer.toUpperCase().trim() === 'ДА') ? '✅' : '❌'}
                   </div>
                   <h2 className={`text-3xl font-bold mb-2 ${
-                    result.answer.toUpperCase().includes('ДА') || result.answer.toUpperCase().startsWith('ДА') ? 'text-green-400' : 'text-red-400'
+                    (result.yesNoAnswer === 'Да' || result.answer.toUpperCase().trim() === 'ДА') ? 'text-green-400' : 'text-red-400'
                   }`}>
-                    {result.answer}
+                    {result.yesNoAnswer || result.answer}
                   </h2>
                 </motion.div>
 
