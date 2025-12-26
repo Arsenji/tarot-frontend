@@ -30,6 +30,7 @@ interface YesNoResult {
     number: number;
   };
   answer: string;
+  yesNoAnswer?: 'Да' | 'Нет'; // Поле для точного определения ответа
   interpretation: string;
 }
 
