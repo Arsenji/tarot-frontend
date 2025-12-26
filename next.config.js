@@ -23,11 +23,6 @@ const nextConfig = {
     // Количество страниц, которые должны одновременно оставаться в памяти
     pagesBufferLength: 2,
   },
-  // Отключаем агрессивное кеширование для статических чанков
-  generateBuildId: async () => {
-    // Используем timestamp для уникальности сборки
-    return `build-${Date.now()}`;
-  },
 }
 
 module.exports = nextConfig
