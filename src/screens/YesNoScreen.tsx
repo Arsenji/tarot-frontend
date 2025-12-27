@@ -304,7 +304,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
     const localCard = tarotCards.find(c => {
       const cardName = card.name?.toLowerCase().trim();
       const localName = c.name?.toLowerCase().trim();
-      return cardName === localName || cardName === localName;
+      return cardName === localName;
     });
     
     if (localCard) {
