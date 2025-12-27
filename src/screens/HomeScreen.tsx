@@ -9,6 +9,7 @@ import BottomNavigation from '@/components/BottomNavigation';
 import { SparklesIcon, Calendar, HelpCircle, Crown, Lock } from 'lucide-react';
 import { SubscriptionStatus } from '@/components/SubscriptionStatus';
 import { SubscriptionModal } from '@/components/SubscriptionModal';
+import { CommandsMenu } from '@/components/CommandsMenu';
 import { apiService } from '@/services/api';
 import { getApiEndpoint } from '@/utils/config';
 
