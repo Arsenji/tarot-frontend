@@ -98,7 +98,7 @@ export function CommandsMenu({
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <ExternalLink className="w-5 h-5" />
+                    <ExternalLink className="w-5 h-5 flex-shrink-0" />
                     <span>Открыть приложение</span>
                   </motion.button>
 
@@ -110,7 +110,7 @@ export function CommandsMenu({
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <CreditCard className="w-4 h-4" />
+                      <CreditCard className="w-4 h-4 flex-shrink-0" />
                       <span className="text-sm">Купить подписку</span>
                     </motion.button>
                     <motion.button
@@ -119,7 +119,7 @@ export function CommandsMenu({
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <Crown className="w-4 h-4" />
+                      <Crown className="w-4 h-4 flex-shrink-0" />
                       <span className="text-sm">Моя подписка</span>
                     </motion.button>
                   </div>
@@ -132,7 +132,7 @@ export function CommandsMenu({
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <HelpCircle className="w-4 h-4" />
+                      <HelpCircle className="w-4 h-4 flex-shrink-0" />
                       <span className="text-sm">Помощь</span>
                     </motion.button>
                     <motion.button
@@ -141,7 +141,7 @@ export function CommandsMenu({
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <MessageSquare className="w-4 h-4" />
+                      <MessageSquare className="w-4 h-4 flex-shrink-0" />
                       <span className="text-sm">Оставить отзыв</span>
                     </motion.button>
                   </div>
