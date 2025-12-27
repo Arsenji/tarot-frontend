@@ -757,7 +757,8 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
             </div>
           </motion.div>
         </motion.div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* Subscription Modal for History */}
       <SubscriptionModal
