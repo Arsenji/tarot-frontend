@@ -499,6 +499,7 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
   }
 
   return (
+    <>
     <div className="relative h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 overflow-hidden">
       {/* Background with stars */}
       <div 
@@ -694,25 +695,39 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
         <BottomNavigation activeTab={activeTab} onTabChange={onTabChange} />
       </div>
 
-      {/* Modal для подробного описания карты - вынесен за пределы контейнера с overflow-hidden */}
-      <AnimatePresence mode="wait">
-        {showCardDetails && selectedCardDetails && (
+      {/* Subscription Modal for History */}
+      <SubscriptionModal
+        isOpen={showSubscriptionModal}
+        onClose={() => {
+          setShowSubscriptionModal(false);
+          // Возвращаемся на главную страницу при закрытии
+          onTabChange('home');
+        }}
+        title="Требуется подписка"
+        message="Подписка — это ваш доступ к полному функционалу. Оформите её прямо сейчас и продолжайте работу без ограничений."
+        showHistoryMessage={false}
+      />
+    </div>
+
+    {/* Modal для подробного описания карты - рендерится вне основного контейнера с overflow-hidden */}
+    <AnimatePresence mode="wait">
+      {showCardDetails && selectedCardDetails && (
+        <motion.div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[99999] flex items-center justify-center p-4"
+          onClick={closeCardDetails}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
           <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[99999] flex items-center justify-center p-4"
-            onClick={closeCardDetails}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            className="bg-slate-800/90 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto border border-slate-600/30 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
           >
-            <motion.div
-              className="bg-slate-800/90 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto border border-slate-600/30 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            >
             {/* Header */}
-            <div className="flex items-center space-x-3 mb-4">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-18 rounded-lg overflow-hidden bg-gradient-to-b from-amber-50 to-amber-100 shadow-md border-2 border-amber-400/30">
                   <img
@@ -725,10 +740,17 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
                   <h3 className="text-white text-lg font-semibold">{selectedCardDetails.card.name}</h3>
                   <p className="text-gray-300 text-sm">
                     {selectedCardDetails.category === 'love' ? 'Любовь' : 
-                     selectedCardDetails.category === 'work' ? 'Карьера' : 'Личное развитие'}
+                     selectedCardDetails.category === 'work' ? 'Карьера' : 
+                     selectedCardDetails.category === 'career' ? 'Карьера' : 'Личное развитие'}
                   </p>
                 </div>
               </div>
+              <button
+                onClick={closeCardDetails}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
             </div>
 
             {/* Content */}
@@ -757,22 +779,9 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
             </div>
           </motion.div>
         </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Subscription Modal for History */}
-      <SubscriptionModal
-        isOpen={showSubscriptionModal}
-        onClose={() => {
-          setShowSubscriptionModal(false);
-          // Возвращаемся на главную страницу при закрытии
-          onTabChange('home');
-        }}
-        title="Требуется подписка"
-        message="Подписка — это ваш доступ к полному функционалу. Оформите её прямо сейчас и продолжайте работу без ограничений."
-        showHistoryMessage={false}
-      />
-    </div>
+      )}
+    </AnimatePresence>
+    </>
   );
 }
 
