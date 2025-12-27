@@ -609,6 +609,40 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
         title="Требуется подписка"
         message="Подписка — это ваш доступ к полному функционалу. Оформите её прямо сейчас и продолжайте работу без ограничений."
       />
+      <CommandsMenu
+        onStart={() => {
+          // Перезагружаем страницу для возврата в начало
+          if (typeof window !== 'undefined') {
+            window.location.reload();
+          }
+        }}
+        onSupport={() => {
+          // Открываем поддержку через Telegram
+          if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
+            (window as any).Telegram.WebApp.openTelegramLink('https://t.me/your_support_bot');
+          } else {
+            alert('Поддержка: напишите нам в Telegram');
+          }
+        }}
+        onDownload={() => {
+          // Открываем ссылку на скачивание
+          if (typeof window !== 'undefined') {
+            window.open('https://t.me/your_bot', '_blank');
+          }
+        }}
+        onIdeas={() => {
+          // Открываем форму для предложения идей
+          alert('Спасибо за интерес! Отправьте ваши идеи в поддержку через команду /support');
+        }}
+        onPartnership={() => {
+          // Открываем информацию о партнерстве
+          alert('Партнерство: свяжитесь с нами через команду /support для обсуждения сотрудничества');
+        }}
+        onInfo={() => {
+          // Показываем информацию о приложении
+          alert('AI-Таролог\n\nВаш личный проводник в мир Таро. Получайте мудрые советы и предсказания с помощью искусственного интеллекта.');
+        }}
+      />
     </div>
   );
 };
