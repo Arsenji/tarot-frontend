@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { apiService } from '@/services/api';
 import { formatInterpretationText, truncateText } from '@/utils/textFormatting';
 import { SubscriptionModal } from '@/components/SubscriptionModal';
+import { tarotCards } from '@/data/tarotCards';
 
 interface HistoryCard {
   name: string;
@@ -145,34 +146,42 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
         return;
       }
       
-      // Получаем подробное описание карты для категории
-      const response = await apiService.getCardDetailedDescription(card.name, category);
+      // Ищем карту в локальных данных
+      const localCard = tarotCards.find(c => {
+        const cardName = card.name?.toLowerCase().trim();
+        const localName = c.name?.toLowerCase().trim();
+        return cardName === localName;
+      });
       
-      console.log('API response:', response);
-      console.log('Response success:', response.success);
-      console.log('Response data:', response.data);
-      console.log('Response data type:', typeof response.data);
-      console.log('Response data.description:', response.data?.description);
+      // Формируем описание из локальных данных или используем данные карты
+      let detailedDescription = '';
       
-      // Проверяем разные возможные структуры ответа
-      const description = response.data?.description || (response.data as any)?.data?.description;
-      
-      if (response.success && description) {
-        console.log('Setting modal state...');
-        setSelectedCardDetails({
-          card,
-          category,
-          detailedDescription: description
-        });
-        setShowCardDetails(true);
-        console.log('Modal should be shown now');
-        console.log('showCardDetails state:', true);
-        console.log('selectedCardDetails state:', { card, category, detailedDescription: description });
+      if (localCard) {
+        // Используем данные из локального источника
+        detailedDescription = `${localCard.meaning}\n\n${localCard.advice}`;
       } else {
-        console.error('API response failed:', response);
-        // Не показываем модальное окно при ошибке API
-        return;
+        // Используем данные из карты истории
+        detailedDescription = card.meaning || card.advice || 'Подробное описание карты';
       }
+      
+      // Дополняем карту данными из локального источника, если они отсутствуют
+      const enrichedCard: HistoryCard = {
+        ...card,
+        meaning: card.meaning || localCard?.meaning || 'Значение карты',
+        advice: card.advice || localCard?.advice || 'Совет карты',
+        keywords: card.keywords || localCard?.keywords || 'Ключевые слова'
+      };
+      
+      console.log('Setting modal state...');
+      setSelectedCardDetails({
+        card: enrichedCard,
+        category,
+        detailedDescription: detailedDescription
+      });
+      setShowCardDetails(true);
+      console.log('Modal should be shown now');
+      console.log('showCardDetails state:', true);
+      console.log('selectedCardDetails state:', { card: enrichedCard, category, detailedDescription });
     } catch (error) {
       console.error('Error getting card details:', error);
       // Не показываем модальное окно при ошибке
