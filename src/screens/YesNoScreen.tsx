@@ -300,50 +300,38 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
     // Если карта не имеет полных данных (meaning, advice, keywords), дополняем их из локального источника
     let enrichedCard = { ...card };
     
-    if (!card.meaning || !card.advice || !card.keywords) {
-      // Импортируем данные карт
-      import('@/data/tarotCards').then(({ tarotCards }) => {
-        // Ищем карту по имени в локальных данных
-        const localCard = tarotCards.find(c => 
-          c.name.toLowerCase() === card.name.toLowerCase() ||
-          c.name === card.name
-        );
-        
-        if (localCard) {
-          // Дополняем карту данными из локального источника
-          enrichedCard = {
-            ...card,
-            meaning: card.meaning || localCard.meaning || 'Значение карты',
-            advice: card.advice || localCard.advice || 'Совет карты',
-            keywords: card.keywords || localCard.keywords || 'Ключевые слова'
-          };
-        } else {
-          // Если карта не найдена, используем значения по умолчанию
-          enrichedCard = {
-            ...card,
-            meaning: card.meaning || card.uprightInterpretation || card.reversedInterpretation || 'Значение карты',
-            advice: card.advice || card.interpretation || 'Совет карты',
-            keywords: card.keywords || 'Ключевые слова'
-          };
-        }
-        
-        setSelectedCardForDescription(enrichedCard);
-        setShowDescriptionModal(true);
-      }).catch(() => {
-        // Если не удалось загрузить данные, используем то что есть
-        enrichedCard = {
-          ...card,
-          meaning: card.meaning || card.uprightInterpretation || card.reversedInterpretation || 'Значение карты',
-          advice: card.advice || card.interpretation || 'Совет карты',
-          keywords: card.keywords || 'Ключевые слова'
-        };
-        setSelectedCardForDescription(enrichedCard);
-        setShowDescriptionModal(true);
-      });
+    // Ищем карту по имени в локальных данных (синхронно, так как tarotCards уже импортирован)
+    const localCard = tarotCards.find(c => {
+      const cardName = card.name?.toLowerCase().trim();
+      const localName = c.name?.toLowerCase().trim();
+      return cardName === localName || cardName === localName;
+    });
+    
+    if (localCard) {
+      // Дополняем карту данными из локального источника
+      enrichedCard = {
+        ...card,
+        meaning: card.meaning || localCard.meaning || card.uprightInterpretation || card.reversedInterpretation || 'Значение карты',
+        advice: card.advice || localCard.advice || card.interpretation || 'Совет карты',
+        keywords: card.keywords || localCard.keywords || 'Ключевые слова'
+      };
     } else {
-      setSelectedCardForDescription(enrichedCard);
-      setShowDescriptionModal(true);
+      // Если карта не найдена, используем значения по умолчанию или из интерпретации
+      enrichedCard = {
+        ...card,
+        meaning: card.meaning || card.uprightInterpretation || card.reversedInterpretation || 'Значение карты',
+        advice: card.advice || card.interpretation || 'Совет карты',
+        keywords: card.keywords || 'Ключевые слова'
+      };
     }
+    
+    console.log('Opening description modal for card:', enrichedCard);
+    console.log('Card has meaning:', !!enrichedCard.meaning);
+    console.log('Card has advice:', !!enrichedCard.advice);
+    console.log('Card has keywords:', !!enrichedCard.keywords);
+    
+    setSelectedCardForDescription(enrichedCard);
+    setShowDescriptionModal(true);
   };
 
   const closeDescriptionModal = () => {
