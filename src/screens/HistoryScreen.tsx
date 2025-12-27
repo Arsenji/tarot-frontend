@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import BottomNavigation from '@/components/BottomNavigation';
 import { ArrowLeft, Calendar, Clock, Star, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -695,21 +695,22 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
       </div>
 
       {/* Modal для подробного описания карты */}
-      {showCardDetails && selectedCardDetails && (
-        <motion.div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[99999] flex items-center justify-center p-4"
-          onClick={closeCardDetails}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
+      <AnimatePresence>
+        {showCardDetails && selectedCardDetails && (
           <motion.div
-            className="bg-slate-800/90 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-slate-600/30 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[99999] flex items-center justify-center p-4"
+            onClick={closeCardDetails}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           >
+            <motion.div
+              className="bg-slate-800/90 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto border border-slate-600/30 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            >
             {/* Header */}
             <div className="flex items-center space-x-3 mb-4">
               <div className="flex items-center space-x-3">
