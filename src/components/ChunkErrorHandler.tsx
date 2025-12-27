@@ -11,7 +11,11 @@ export function ChunkErrorHandler() {
         e.message.includes('WebSocket') ||
         e.message.includes('MTProtoSender') ||
         e.message.includes('TelegramClient') ||
-        e.message.includes('zws2.web.telegram.org')
+        e.message.includes('zws') ||
+        e.message.includes('web.telegram.org') ||
+        e.message.includes('PromisedWebSockets') ||
+        e.message.includes('WebSocket connection timeout') ||
+        e.message.includes('WebSocket connection failed')
       )) {
         // Тихо игнорируем ошибки Telegram WebSocket
         return;
@@ -34,9 +38,17 @@ export function ChunkErrorHandler() {
           e.reason.message.includes('WebSocket') ||
           e.reason.message.includes('MTProtoSender') ||
           e.reason.message.includes('TelegramClient') ||
-          e.reason.message.includes('zws2.web.telegram.org')
+          e.reason.message.includes('zws') ||
+          e.reason.message.includes('web.telegram.org') ||
+          e.reason.message.includes('PromisedWebSockets') ||
+          e.reason.message.includes('WebSocket connection timeout') ||
+          e.reason.message.includes('WebSocket connection failed')
         )) ||
-        (e.reason.toString && e.reason.toString().includes('WebSocket'))
+        (e.reason.toString && (
+          e.reason.toString().includes('WebSocket') ||
+          e.reason.toString().includes('zws') ||
+          e.reason.toString().includes('web.telegram.org')
+        ))
       )) {
         // Тихо игнорируем ошибки Telegram WebSocket
         e.preventDefault();
@@ -61,9 +73,13 @@ export function ChunkErrorHandler() {
         message.includes('WebSocket') ||
         message.includes('MTProtoSender') ||
         message.includes('TelegramClient') ||
-        message.includes('zws2.web.telegram.org') ||
+        message.includes('zws') ||
+        message.includes('web.telegram.org') ||
+        message.includes('PromisedWebSockets') ||
         message.includes('WebSocket connection failed') ||
-        message.includes('WebSocket connection timeout')
+        message.includes('WebSocket connection timeout') ||
+        message.includes('Using fallback connection') ||
+        message.includes('Socket') && message.includes('closed')
       ) {
         // Тихо игнорируем
         return;
