@@ -694,8 +694,8 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
         <BottomNavigation activeTab={activeTab} onTabChange={onTabChange} />
       </div>
 
-      {/* Modal для подробного описания карты */}
-      <AnimatePresence>
+      {/* Modal для подробного описания карты - вынесен за пределы контейнера с overflow-hidden */}
+      <AnimatePresence mode="wait">
         {showCardDetails && selectedCardDetails && (
           <motion.div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[99999] flex items-center justify-center p-4"
