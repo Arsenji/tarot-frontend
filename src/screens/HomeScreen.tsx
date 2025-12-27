@@ -610,37 +610,39 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
         message="Подписка — это ваш доступ к полному функционалу. Оформите её прямо сейчас и продолжайте работу без ограничений."
       />
       <CommandsMenu
-        onStart={() => {
-          // Перезагружаем страницу для возврата в начало
+        onOpenApp={() => {
+          // Перезагружаем страницу для открытия приложения
           if (typeof window !== 'undefined') {
             window.location.reload();
           }
         }}
-        onSupport={() => {
-          // Открываем поддержку через Telegram
+        onBuySubscription={() => {
+          // Открываем модальное окно покупки подписки
+          setIsSubscriptionModalOpen(true);
+        }}
+        onMySubscription={() => {
+          // Показываем информацию о текущей подписке
+          if (subscriptionInfo?.hasSubscription) {
+            alert(`У вас активная подписка!\n\nОсталось:\n- Совет дня: ${subscriptionInfo.remainingDailyAdvice === -1 ? '∞' : subscriptionInfo.remainingDailyAdvice}\n- Да/Нет: ${subscriptionInfo.remainingYesNo === -1 ? '∞' : subscriptionInfo.remainingYesNo}\n- Три карты: ${subscriptionInfo.remainingThreeCards === -1 ? '∞' : subscriptionInfo.remainingThreeCards}`);
+          } else {
+            setIsSubscriptionModalOpen(true);
+          }
+        }}
+        onHelp={() => {
+          // Открываем помощь через Telegram
           if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
             (window as any).Telegram.WebApp.openTelegramLink('https://t.me/your_support_bot');
           } else {
-            alert('Поддержка: напишите нам в Telegram');
+            alert('Помощь: напишите нам в Telegram для получения поддержки');
           }
         }}
-        onDownload={() => {
-          // Открываем ссылку на скачивание
-          if (typeof window !== 'undefined') {
-            window.open('https://t.me/your_bot', '_blank');
+        onFeedback={() => {
+          // Открываем форму для отзыва
+          if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
+            (window as any).Telegram.WebApp.openTelegramLink('https://t.me/your_feedback_bot');
+          } else {
+            alert('Спасибо за интерес! Оставьте отзыв в Telegram');
           }
-        }}
-        onIdeas={() => {
-          // Открываем форму для предложения идей
-          alert('Спасибо за интерес! Отправьте ваши идеи в поддержку через команду /support');
-        }}
-        onPartnership={() => {
-          // Открываем информацию о партнерстве
-          alert('Партнерство: свяжитесь с нами через команду /support для обсуждения сотрудничества');
-        }}
-        onInfo={() => {
-          // Показываем информацию о приложении
-          alert('AI-Таролог\n\nВаш личный проводник в мир Таро. Получайте мудрые советы и предсказания с помощью искусственного интеллекта.');
         }}
       />
     </div>

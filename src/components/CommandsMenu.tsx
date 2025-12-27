@@ -2,85 +2,36 @@
 
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Home, 
-  HelpCircle, 
-  Download, 
-  Lightbulb, 
-  Users, 
-  Info,
   X,
-  Menu
+  Menu,
+  ExternalLink,
+  CreditCard,
+  Crown,
+  HelpCircle,
+  MessageSquare
 } from 'lucide-react';
 import { useState } from 'react';
 
 interface CommandsMenuProps {
-  onStart?: () => void;
-  onSupport?: () => void;
-  onDownload?: () => void;
-  onIdeas?: () => void;
-  onPartnership?: () => void;
-  onInfo?: () => void;
-}
-
-interface CommandItem {
-  command: string;
-  icon: React.ReactNode;
-  label: string;
-  action?: () => void;
+  onOpenApp?: () => void;
+  onBuySubscription?: () => void;
+  onMySubscription?: () => void;
+  onHelp?: () => void;
+  onFeedback?: () => void;
 }
 
 export function CommandsMenu({
-  onStart,
-  onSupport,
-  onDownload,
-  onIdeas,
-  onPartnership,
-  onInfo
+  onOpenApp,
+  onBuySubscription,
+  onMySubscription,
+  onHelp,
+  onFeedback
 }: CommandsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const commands: CommandItem[] = [
-    {
-      command: '/start',
-      icon: <Home className="w-5 h-5" />,
-      label: 'В начало',
-      action: onStart
-    },
-    {
-      command: '/support',
-      icon: <HelpCircle className="w-5 h-5" />,
-      label: 'Поддержка',
-      action: onSupport
-    },
-    {
-      command: '/download',
-      icon: <Download className="w-5 h-5" />,
-      label: 'Скачать приложение',
-      action: onDownload
-    },
-    {
-      command: '/ideas',
-      icon: <Lightbulb className="w-5 h-5" />,
-      label: 'Предложить идею',
-      action: onIdeas
-    },
-    {
-      command: '/partnership',
-      icon: <Users className="w-5 h-5" />,
-      label: 'Партнерство',
-      action: onPartnership
-    },
-    {
-      command: '/info',
-      icon: <Info className="w-5 h-5" />,
-      label: 'О приложении',
-      action: onInfo
-    }
-  ];
-
-  const handleCommandClick = (command: CommandItem) => {
-    if (command.action) {
-      command.action();
+  const handleAction = (action?: () => void) => {
+    if (action) {
+      action();
     }
     setIsOpen(false);
   };
@@ -119,39 +70,83 @@ export function CommandsMenu({
             
             {/* Меню */}
             <motion.div
-              className="fixed bottom-24 right-4 z-[101] bg-slate-800/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-600/30 overflow-hidden min-w-[280px] max-w-[320px]"
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed inset-0 z-[101] flex items-center justify-center p-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
             >
-              <div className="p-2">
-                {commands.map((cmd, index) => (
+              <motion.div
+                className="bg-slate-800/95 backdrop-blur-md rounded-2xl shadow-2xl border border-purple-500/30 overflow-hidden w-full max-w-sm"
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Заголовок */}
+                <div className="px-6 pt-6 pb-4 border-b border-slate-700/50">
+                  <h2 className="text-white text-lg font-semibold">Выберите действие:</h2>
+                </div>
+
+                {/* Кнопки */}
+                <div className="p-4 space-y-3">
+                  {/* Большая кнопка "Открыть приложение" */}
                   <motion.button
-                    key={cmd.command}
-                    className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-700/50 transition-colors text-left group"
-                    onClick={() => handleCommandClick(cmd)}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    whileHover={{ x: 4 }}
+                    className="w-full bg-purple-600/80 hover:bg-purple-600 text-white font-medium py-4 px-6 rounded-xl border border-purple-400/30 transition-all flex items-center justify-center space-x-2"
+                    onClick={() => handleAction(onOpenApp)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
-                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-slate-700/50 flex items-center justify-center group-hover:bg-purple-600/30 transition-colors">
-                      <div className="text-gray-300 group-hover:text-purple-400 transition-colors">
-                        {cmd.icon}
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs text-gray-400 font-mono mb-0.5">
-                        {cmd.command}
-                      </div>
-                      <div className="text-sm text-white font-medium truncate">
-                        {cmd.label}
-                      </div>
-                    </div>
+                    <ExternalLink className="w-5 h-5" />
+                    <span>Открыть приложение</span>
                   </motion.button>
-                ))}
-              </div>
+
+                  {/* Две кнопки в ряд: "Купить подписку" и "Моя подписка" */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <motion.button
+                      className="bg-slate-700/50 hover:bg-slate-700 text-white font-medium py-3 px-4 rounded-xl border border-purple-400/30 transition-all flex items-center justify-center space-x-2"
+                      onClick={() => handleAction(onBuySubscription)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      <span className="text-sm">Купить подписку</span>
+                    </motion.button>
+                    <motion.button
+                      className="bg-slate-700/50 hover:bg-slate-700 text-white font-medium py-3 px-4 rounded-xl border border-purple-400/30 transition-all flex items-center justify-center space-x-2"
+                      onClick={() => handleAction(onMySubscription)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Crown className="w-4 h-4" />
+                      <span className="text-sm">Моя подписка</span>
+                    </motion.button>
+                  </div>
+
+                  {/* Две кнопки в ряд: "Помощь" и "Оставить отзыв" */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <motion.button
+                      className="bg-slate-700/50 hover:bg-slate-700 text-white font-medium py-3 px-4 rounded-xl border border-purple-400/30 transition-all flex items-center justify-center space-x-2"
+                      onClick={() => handleAction(onHelp)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                      <span className="text-sm">Помощь</span>
+                    </motion.button>
+                    <motion.button
+                      className="bg-slate-700/50 hover:bg-slate-700 text-white font-medium py-3 px-4 rounded-xl border border-purple-400/30 transition-all flex items-center justify-center space-x-2"
+                      onClick={() => handleAction(onFeedback)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      <span className="text-sm">Оставить отзыв</span>
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
             </motion.div>
           </>
         )}
