@@ -9,7 +9,6 @@ import BottomNavigation from '@/components/BottomNavigation';
 import { SparklesIcon, Calendar, HelpCircle, Crown, Lock } from 'lucide-react';
 import { SubscriptionStatus } from '@/components/SubscriptionStatus';
 import { SubscriptionModal } from '@/components/SubscriptionModal';
-import { CommandsMenu } from '@/components/CommandsMenu';
 import { apiService } from '@/services/api';
 import { getApiEndpoint } from '@/utils/config';
 
@@ -608,42 +607,6 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
         onClose={handleCloseSubscriptionModal}
         title="Требуется подписка"
         message="Подписка — это ваш доступ к полному функционалу. Оформите её прямо сейчас и продолжайте работу без ограничений."
-      />
-      <CommandsMenu
-        onOpenApp={() => {
-          // Перезагружаем страницу для открытия приложения
-          if (typeof window !== 'undefined') {
-            window.location.reload();
-          }
-        }}
-        onBuySubscription={() => {
-          // Открываем модальное окно покупки подписки
-          setIsSubscriptionModalOpen(true);
-        }}
-        onMySubscription={() => {
-          // Показываем информацию о текущей подписке
-          if (subscriptionInfo?.hasSubscription) {
-            alert(`У вас активная подписка!\n\nОсталось:\n- Совет дня: ${subscriptionInfo.remainingDailyAdvice === -1 ? '∞' : subscriptionInfo.remainingDailyAdvice}\n- Да/Нет: ${subscriptionInfo.remainingYesNo === -1 ? '∞' : subscriptionInfo.remainingYesNo}\n- Три карты: ${subscriptionInfo.remainingThreeCards === -1 ? '∞' : subscriptionInfo.remainingThreeCards}`);
-          } else {
-            setIsSubscriptionModalOpen(true);
-          }
-        }}
-        onHelp={() => {
-          // Открываем помощь через Telegram
-          if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
-            (window as any).Telegram.WebApp.openTelegramLink('https://t.me/your_support_bot');
-          } else {
-            alert('Помощь: напишите нам в Telegram для получения поддержки');
-          }
-        }}
-        onFeedback={() => {
-          // Открываем форму для отзыва
-          if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
-            (window as any).Telegram.WebApp.openTelegramLink('https://t.me/your_feedback_bot');
-          } else {
-            alert('Спасибо за интерес! Оставьте отзыв в Telegram');
-          }
-        }}
       />
     </div>
   );
