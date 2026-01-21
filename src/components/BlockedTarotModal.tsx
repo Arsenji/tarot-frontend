@@ -44,7 +44,7 @@ export function BlockedTarotModal({ isOpen, onClose, nextAvailableAt }: Props) {
 
             <div className="mt-4 space-y-3">
               <p className="text-gray-200 text-sm leading-relaxed">
-                Расклад будет доступен через 24 часа.
+                Этот расклад будет доступен через 24 часа
               </p>
 
               {timeText ? (
@@ -52,7 +52,7 @@ export function BlockedTarotModal({ isOpen, onClose, nextAvailableAt }: Props) {
               ) : null}
 
               <p className="text-gray-300 text-sm leading-relaxed">
-                Вы можете оформить подписку для мгновенного доступа.
+                Вы можете оформить подписку, чтобы получить неограниченный доступ
               </p>
             </div>
 

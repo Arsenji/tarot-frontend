@@ -14,6 +14,14 @@ import { getAccessToken } from '@/utils/auth';
 
 export type SubscriptionInfo = any;
 
+export type TarotType = 'daily' | 'yesNo' | 'threeCards';
+
+export type CooldownEndsAt = {
+  daily?: number;
+  yesNo?: number;
+  threeCards?: number;
+};
+
 export type SubscriptionState = {
   // canonical flag required by spec
   isLoaded: boolean;
@@ -22,9 +30,10 @@ export type SubscriptionState = {
   loading: boolean;
   error?: string;
   subscriptionInfo: SubscriptionInfo;
+  // Absolute timestamps (ms since epoch) when cooldown ends.
+  // Derived from backend-provided msRemaining + the moment we received/cached the status.
+  cooldownEndsAt: CooldownEndsAt;
 };
-
-export type TarotType = 'daily' | 'yesNo' | 'threeCards';
 
 export type TarotAvailability = {
   allowed: boolean;
@@ -46,6 +55,7 @@ let state: SubscriptionState = {
   loaded: false,
   loading: false,
   subscriptionInfo: LOCKED_DEFAULT,
+  cooldownEndsAt: {},
 };
 
 const listeners = new Set<() => void>();
@@ -73,32 +83,53 @@ export function subscribeSubscription(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-function safeGetCachedInfo(): SubscriptionInfo | null {
+function safeGetCachedInfo(): { ts: number; subscriptionInfo: SubscriptionInfo } | null {
   try {
     if (typeof window === 'undefined') return null;
     const cached = localStorage.getItem('subscriptionStatusCache');
     if (!cached) return null;
     const parsed = JSON.parse(cached);
-    return parsed?.subscriptionInfo ?? null;
+    const ts = typeof parsed?.ts === 'number' ? parsed.ts : null;
+    const subscriptionInfo = parsed?.subscriptionInfo ?? null;
+    if (!ts || !subscriptionInfo) return null;
+    return { ts, subscriptionInfo };
   } catch {
     return null;
   }
 }
 
-function safeSetCachedInfo(info: SubscriptionInfo) {
+function safeSetCachedInfo(info: SubscriptionInfo, ts: number) {
   try {
     if (typeof window === 'undefined') return;
-    localStorage.setItem('subscriptionStatusCache', JSON.stringify({ ts: Date.now(), subscriptionInfo: info }));
+    localStorage.setItem('subscriptionStatusCache', JSON.stringify({ ts, subscriptionInfo: info }));
   } catch {
     // ignore
   }
+}
+
+function computeCooldownEndsAt(info: any, baseTs: number): CooldownEndsAt {
+  // Convert backend msRemaining -> absolute cooldown end timestamp.
+  const dailyMs = typeof info?.cooldowns?.dailyAdviceMsRemaining === 'number' ? info.cooldowns.dailyAdviceMsRemaining : null;
+  const yesNoMs = typeof info?.cooldowns?.yesNoMsRemaining === 'number' ? info.cooldowns.yesNoMsRemaining : null;
+  const threeMs = typeof info?.cooldowns?.threeCardsMsRemaining === 'number' ? info.cooldowns.threeCardsMsRemaining : null;
+
+  return {
+    daily: dailyMs != null && dailyMs > 0 ? baseTs + dailyMs : undefined,
+    yesNo: yesNoMs != null && yesNoMs > 0 ? baseTs + yesNoMs : undefined,
+    threeCards: threeMs != null && threeMs > 0 ? baseTs + threeMs : undefined,
+  };
 }
 
 export function bootstrapSubscriptionStatus(): Promise<void> {
   if (inFlight) return inFlight;
 
   const cached = safeGetCachedInfo();
-  if (cached) setState({ subscriptionInfo: cached });
+  if (cached) {
+    setState({
+      subscriptionInfo: cached.subscriptionInfo,
+      cooldownEndsAt: computeCooldownEndsAt(cached.subscriptionInfo, cached.ts),
+    });
+  }
 
   setState({ loading: true });
   inFlight = (async () => {
@@ -116,8 +147,15 @@ export function bootstrapSubscriptionStatus(): Promise<void> {
     const info = (resp as any).subscriptionInfo ?? (resp.data as any)?.subscriptionInfo;
     if (resp.success && info) {
       console.log('Subscription: loaded');
-      safeSetCachedInfo(info);
-      setState({ subscriptionInfo: info, isLoaded: true, loading: false, error: undefined });
+      const ts = Date.now();
+      safeSetCachedInfo(info, ts);
+      setState({
+        subscriptionInfo: info,
+        cooldownEndsAt: computeCooldownEndsAt(info, ts),
+        isLoaded: true,
+        loading: false,
+        error: undefined,
+      });
       return;
     }
 
@@ -128,6 +166,7 @@ export function bootstrapSubscriptionStatus(): Promise<void> {
       isLoaded: true,
       loading: false,
       error: resp.error || 'Failed to load subscription status',
+      cooldownEndsAt: {},
     });
   })().finally(() => {
     inFlight = null;
@@ -149,6 +188,26 @@ function getCanUse(info: any, type: TarotType): boolean {
   }
 }
 
+function isFreeUser(info: any): boolean {
+  // "free user" == user without active subscription
+  return !info?.hasSubscription;
+}
+
+function getFreeUsedFlag(info: any, type: TarotType): boolean {
+  // For free users, remainingX counters MUST NOT be used for blocking.
+  // Backend typically provides per-spread usage flags + cooldowns.
+  switch (type) {
+    case 'daily':
+      return !!info?.freeDailyAdviceUsed;
+    case 'yesNo':
+      return !!info?.freeYesNoUsed;
+    case 'threeCards':
+      return !!info?.freeThreeCardsUsed;
+    default:
+      return false;
+  }
+}
+
 function getCooldownMsRemaining(info: any, type: TarotType): number | null {
   const cooldowns = info?.cooldowns;
   if (!cooldowns) return null;
@@ -164,19 +223,44 @@ function getCooldownMsRemaining(info: any, type: TarotType): number | null {
   }
 }
 
+function computeFreeUserAvailability(info: any, type: TarotType, cooldownEndsAt: CooldownEndsAt): TarotAvailability {
+  // Business rules (FREE):
+  // - each spread is available once per 24h
+  // - availability is determined ONLY by time (lastUsedAt + 24h)
+  // We model this using backend-provided cooldowns (ms remaining) and per-spread used flags.
+  const used = getFreeUsedFlag(info, type);
+  if (!used) return { allowed: true };
+
+  const endsAt = cooldownEndsAt?.[type];
+  if (typeof endsAt === 'number') {
+    if (Date.now() >= endsAt) return { allowed: true };
+    return { allowed: false, nextAvailableAt: new Date(endsAt) };
+  }
+
+  // Fallbacks (should be rare):
+  // - if cooldown endsAt isn't available, prefer canUse* flags (time-derived)
+  // - NEVER use remaining* counters to block free users
+  if (getCanUse(info, type)) return { allowed: true };
+
+  const msRemaining = getCooldownMsRemaining(info, type);
+  if (msRemaining != null && msRemaining > 0) return { allowed: false, nextAvailableAt: new Date(Date.now() + msRemaining) };
+
+  return { allowed: false };
+}
+
 export function getTarotAvailability(type: TarotType): TarotAvailability {
   const snap = getSubscriptionSnapshot();
   if (!snap.loaded || snap.loading) return { allowed: false };
+  // If subscription bootstrap failed and fallback was applied, keep the UI locked
+  // (we must not grant access based on incomplete/unknown status).
+  if (snap.error) return { allowed: false };
 
   const info = snap.subscriptionInfo;
-  if (info?.hasSubscription) return { allowed: true };
+  // Business rules (PAID): always allowed, no cooldowns.
+  if (!isFreeUser(info)) return { allowed: true };
 
-  const allowed = getCanUse(info, type);
-  if (allowed) return { allowed: true };
-
-  const msRemaining = getCooldownMsRemaining(info, type);
-  const nextAvailableAt = msRemaining && msRemaining > 0 ? new Date(Date.now() + msRemaining) : undefined;
-  return { allowed: false, nextAvailableAt };
+  // Business rules (FREE): block ONLY while cooldown is active.
+  return computeFreeUserAvailability(info, type, snap.cooldownEndsAt);
 }
 
 export function useSubscriptionStatus(): SubscriptionState {
