@@ -15,6 +15,9 @@ import { getAccessToken } from '@/utils/auth';
 export type SubscriptionInfo = any;
 
 export type SubscriptionState = {
+  // canonical flag required by spec
+  isLoaded: boolean;
+  // backward-compat alias
   loaded: boolean;
   loading: boolean;
   error?: string;
@@ -39,6 +42,7 @@ const LOCKED_DEFAULT: SubscriptionInfo = {
 };
 
 let state: SubscriptionState = {
+  isLoaded: false,
   loaded: false,
   loading: false,
   subscriptionInfo: LOCKED_DEFAULT,
@@ -52,7 +56,11 @@ function emit() {
 }
 
 function setState(partial: Partial<SubscriptionState>) {
-  state = { ...state, ...partial };
+  const next = { ...state, ...partial } as SubscriptionState;
+  // keep flags in sync
+  next.isLoaded = !!(partial.isLoaded ?? partial.loaded ?? next.isLoaded);
+  next.loaded = next.isLoaded;
+  state = next;
   emit();
 }
 
@@ -96,32 +104,28 @@ export function bootstrapSubscriptionStatus(): Promise<void> {
   inFlight = (async () => {
     const token = getAccessToken();
     if (!token) {
-      console.log('TarotBootstrap: skipped (no token)');
-      setState({
-        subscriptionInfo: LOCKED_DEFAULT,
-        loaded: true, // приложение должно открываться даже без токена
-        loading: false,
-        error: 'NO_TOKEN',
-      });
+      // do NOT mark loaded; we must wait for token, then request immediately
+      console.log('Subscription: waiting for token');
+      setState({ loading: false });
       return;
     }
 
-    console.log('TarotBootstrap: requesting subscription-status');
+    console.log('Subscription: requesting status');
     const resp = await apiService.getTarotSubscriptionStatus();
 
     const info = (resp as any).subscriptionInfo ?? (resp.data as any)?.subscriptionInfo;
     if (resp.success && info) {
-      console.log('TarotBootstrap: success');
+      console.log('Subscription: loaded');
       safeSetCachedInfo(info);
-      setState({ subscriptionInfo: info, loaded: true, loading: false, error: undefined });
+      setState({ subscriptionInfo: info, isLoaded: true, loading: false, error: undefined });
       return;
     }
 
     // Любая ошибка (включая 401) не должна ломать UI: применяем fallback locked.
-    console.log('TarotBootstrap: failed, fallback applied');
+    console.log('Subscription: failed, fallback applied');
     setState({
       subscriptionInfo: LOCKED_DEFAULT,
-      loaded: true,
+      isLoaded: true,
       loading: false,
       error: resp.error || 'Failed to load subscription status',
     });
