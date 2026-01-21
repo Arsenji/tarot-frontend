@@ -1,5 +1,5 @@
 import { cache, historyCache, dailyAdviceCache, getCurrentDate } from '@/utils/cache';
-import { getValidAuthToken } from '@/utils/auth';
+import { getAccessToken } from '@/utils/auth';
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -84,7 +84,7 @@ class ApiService {
     const startTime = performance.now();
     
     try {
-      const token = await getValidAuthToken();
+      const token = getAccessToken();
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         headers: {
           'Content-Type': 'application/json',
@@ -258,13 +258,6 @@ class ApiService {
     return this.request<{ subscriptionInfo: any }>(`/api/subscription/${userId}/use-spread`, {
       method: 'POST',
       body: JSON.stringify({ spreadType }),
-    });
-  }
-
-  // Fast tarot availability (used for UI locking)
-  async getTarotSubscriptionStatus(): Promise<ApiResponse<{ subscriptionInfo: any }>> {
-    return this.request<{ subscriptionInfo: any }>('/api/tarot/subscription-status', {
-      method: 'GET',
     });
   }
 

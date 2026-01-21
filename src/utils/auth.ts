@@ -1,116 +1,112 @@
-/**
- * Утилиты для работы с аутентификацией через Telegram WebApp
- */
+'use client';
 
-import { getApiEndpoint } from './config';
+/**
+ * Telegram WebApp auth helpers.
+ * Goal: provide a valid JWT for backend requests (stored in localStorage).
+ */
 
 export interface AuthTokenData {
   token: string;
-  userId: string;
-  telegramId: number;
-  expires: number;
+  expires?: number | string;
 }
 
-/**
- * Получение токена аутентификации через Telegram WebApp
- */
-export const getAuthToken = async (): Promise<string | null> => {
-  try {
-    // Сначала проверяем, есть ли токен в localStorage
-    let token = localStorage.getItem('authToken');
-    
-    if (!token && typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.initData) {
-      // Если токена нет, получаем его через Telegram WebApp
-      const initData = (window as any).Telegram.WebApp.initData;
-      
-      const authResponse = await fetch(getApiEndpoint('/auth/telegram'), {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ initData })
-      });
-      
-      if (authResponse.ok) {
-        const authData = await authResponse.json();
-        console.log('📥 Auth response received:', {
-          hasData: !!authData.data,
-          hasToken: !!authData.token,
-          hasDataToken: !!authData.data?.token,
-          fullResponse: authData
-        });
-        
-        // Токен может быть в authData.token или authData.data.token
-        token = authData.data?.token || authData.token;
-        
-        if (token) {
-          // Сохраняем токен в localStorage
-          localStorage.setItem('authToken', token);
-          console.log('✅ Token saved to localStorage:', token.substring(0, 20) + '...');
-          const expires = authData.data?.expires || authData.expires;
-          if (expires) {
-            localStorage.setItem('tokenExpires', expires.toString());
-          }
-        } else {
-          console.error('❌ Token not found in auth response:', authData);
-        }
-      } else {
-        const errorText = await authResponse.text();
-        console.error('❌ Auth response failed:', authResponse.status, authResponse.statusText, errorText);
-      }
-    }
-    
-    return token;
-  } catch (error) {
-    console.error('Error getting auth token:', error);
-    return null;
-  }
-};
+function getApiBaseUrl(): string {
+  return process.env.NODE_ENV === 'production'
+    ? 'https://tarot-tg-backend.onrender.com'
+    : 'http://localhost:3001';
+}
 
-/**
- * Проверка валидности токена
- */
 export const isTokenValid = (): boolean => {
   try {
+    if (typeof window === 'undefined') return false;
     const token = localStorage.getItem('authToken');
     const expires = localStorage.getItem('tokenExpires');
-    
     if (!token || !expires) return false;
-    
-    const now = Date.now();
-    return now < parseInt(expires);
-  } catch (error) {
-    console.error('Error checking token validity:', error);
+
+    const nowMs = Date.now();
+    const raw = parseInt(expires);
+    if (!raw || Number.isNaN(raw)) return false;
+
+    // Backend may return expires in seconds; Date.now() is ms.
+    const expiresMs = raw < 1_000_000_000_000 ? raw * 1000 : raw;
+    return nowMs < expiresMs;
+  } catch {
     return false;
   }
 };
 
-/**
- * Очистка токенов
- */
 export const clearAuthTokens = (): void => {
+  if (typeof window === 'undefined') return;
   localStorage.removeItem('authToken');
   localStorage.removeItem('tokenExpires');
 };
 
 /**
- * Получение токена с автоматическим обновлением
+ * Synchronous access-token getter.
+ * IMPORTANT: must NOT trigger any network requests.
  */
+export const getAccessToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  if (!isTokenValid()) return null;
+  return localStorage.getItem('authToken');
+};
+
+export const getAuthToken = async (): Promise<string | null> => {
+  try {
+    if (typeof window === 'undefined') return null;
+
+    let token = localStorage.getItem('authToken');
+    if (token) return token;
+
+    // initData can appear either on window.Telegram or via SDK
+    let initData: string | undefined = (window as any).Telegram?.WebApp?.initData;
+    if (!initData) {
+      try {
+        const TWA = await import('@twa-dev/sdk');
+        const WebApp = (TWA as any).WebApp || (TWA as any).default?.WebApp;
+        WebApp?.ready?.();
+        initData = WebApp?.initData;
+      } catch {
+        // ignore
+      }
+    }
+
+    if (!initData) return null;
+
+    const resp = await fetch(`${getApiBaseUrl()}/api/auth/telegram`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData }),
+    });
+
+    if (!resp.ok) return null;
+
+    const authData: any = await resp.json();
+    token = authData?.data?.token || authData?.token || null;
+    const expires = authData?.data?.expires || authData?.expires;
+
+    if (token) {
+      localStorage.setItem('authToken', token);
+      if (expires) {
+        const raw = typeof expires === 'string' ? parseInt(expires) : expires;
+        const expiresMs = raw < 1_000_000_000_000 ? raw * 1000 : raw;
+        localStorage.setItem('tokenExpires', expiresMs.toString());
+      }
+    }
+
+    return token;
+  } catch {
+    return null;
+  }
+};
+
 export const getValidAuthToken = async (): Promise<string | null> => {
-  // Проверяем валидность токена
+  if (typeof window === 'undefined') return null;
   if (!isTokenValid()) {
     clearAuthTokens();
-    // Если токен невалиден, пытаемся получить новый
     return await getAuthToken();
   }
-  
-  // Токен валиден, возвращаем его
-  const token = localStorage.getItem('authToken');
-  if (token) {
-    return token;
-  }
-  
-  // Если токена нет, пытаемся получить новый
-  return await getAuthToken();
+  return localStorage.getItem('authToken');
 };
+

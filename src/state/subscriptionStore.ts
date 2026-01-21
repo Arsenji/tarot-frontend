@@ -10,6 +10,7 @@
  */
 import { apiService } from '@/services/api';
 import { useEffect, useState } from 'react';
+import { getAccessToken } from '@/utils/auth';
 
 export type SubscriptionInfo = any;
 
@@ -93,21 +94,34 @@ export function bootstrapSubscriptionStatus(): Promise<void> {
 
   setState({ loading: true });
   inFlight = (async () => {
-    console.log('📊 Subscription status bootstrap: requesting /api/tarot/subscription-status');
+    const token = getAccessToken();
+    if (!token) {
+      console.log('TarotBootstrap: skipped (no token)');
+      setState({
+        subscriptionInfo: LOCKED_DEFAULT,
+        loaded: true, // приложение должно открываться даже без токена
+        loading: false,
+        error: 'NO_TOKEN',
+      });
+      return;
+    }
+
+    console.log('TarotBootstrap: requesting subscription-status');
     const resp = await apiService.getTarotSubscriptionStatus();
 
     const info = (resp as any).subscriptionInfo ?? (resp.data as any)?.subscriptionInfo;
     if (resp.success && info) {
-      console.log('📊 Subscription status response:', info);
+      console.log('TarotBootstrap: success');
       safeSetCachedInfo(info);
       setState({ subscriptionInfo: info, loaded: true, loading: false, error: undefined });
       return;
     }
 
-    console.log('📊 Subscription status bootstrap: failed', { error: resp.error });
+    // Любая ошибка (включая 401) не должна ломать UI: применяем fallback locked.
+    console.log('TarotBootstrap: failed, fallback applied');
     setState({
       subscriptionInfo: LOCKED_DEFAULT,
-      loaded: false,
+      loaded: true,
       loading: false,
       error: resp.error || 'Failed to load subscription status',
     });

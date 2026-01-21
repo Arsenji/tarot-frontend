@@ -45,17 +45,15 @@ export function BlockedTarotModal({ isOpen, onClose, onSubscribe, nextAvailableA
 
             <div className="mt-4 space-y-3">
               <p className="text-gray-200 text-sm leading-relaxed">
-                Этот расклад можно использовать только один раз в 24 часа.
+                Расклад будет доступен через 24 часа.
               </p>
 
               {timeText ? (
                 <p className="text-gray-200 text-sm leading-relaxed">{timeText}</p>
-              ) : (
-                <p className="text-gray-200 text-sm leading-relaxed">Он будет доступен снова через 24 часа.</p>
-              )}
+              ) : null}
 
               <p className="text-gray-300 text-sm leading-relaxed">
-                Оформите подписку, чтобы получать расклады без ограничений.
+                Вы можете оформить подписку для мгновенного доступа.
               </p>
             </div>
 
