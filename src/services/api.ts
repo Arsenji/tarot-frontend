@@ -14,71 +14,61 @@ export interface ApiResponse<T> {
     canUseDailyAdvice: boolean;
     historyLimit: number;
     freeDailyAdviceUsed: boolean;
+    freeYesNoUsed: boolean;
+    freeThreeCardsUsed: boolean;
     remainingDailyAdvice: number;
     remainingYesNo: number;
     remainingThreeCards: number;
+    cooldowns?: {
+      dailyAdviceMsRemaining: number;
+      yesNoMsRemaining: number;
+      threeCardsMsRemaining: number;
+      dailyAdviceHoursRemaining: number;
+      yesNoHoursRemaining: number;
+      threeCardsHoursRemaining: number;
+    };
   };
 }
 
-export interface ReadingResult {
-  readingId: string;
-  cards: CardData[];
-  interpretation: string;
-  category: string;
+export interface TarotCard {
+  name: string;
+  image?: string;
+  keywords: string;
+  advice: string;
+  meaning: string;
+  isMajorArcana: boolean;
+  suit: string;
+  number: number;
+  detailedDescription?: {
+    general: string;
+    love: string;
+    career: string;
+    personal: string;
+    reversed?: string;
+    displayDescription?: string;
+  };
 }
 
 export interface DailyAdviceResponse {
-  card: {
-    name: string;
-    category: string;
-    uprightImage: string;
-    reversedImage: string;
-    uprightInterpretation: string;
-    reversedInterpretation: string;
-  };
-  interpretation: string;
-  category: string;
+  advice: string;
+  card: TarotCard;
 }
 
-export interface YesNoResult {
-  card: {
-    name: string;
-    category: string;
-    uprightImage: string;
-    reversedImage: string;
-    uprightInterpretation: string;
-    reversedInterpretation: string;
-  };
-  answer: 'Да' | 'Нет';
-  interpretation: string;
-  category: string;
-}
-
-export interface ThreeCardsReading {
+export interface YesNoResponse {
   readingId: string;
-  cards: CardData[];
-  interpretation: string;
-  category: string;
-}
-
-export interface TarotReading {
-  readingId: string;
-  date: number;
-  spreadType: string;
   question: string;
-  cards: CardData[];
+  card: {
+    name: string;
+    imagePath: string;
+    keywords: string;
+    meaning: string;
+    advice: string;
+    isMajorArcana: boolean;
+    suit: string;
+    number: number;
+  };
+  answer: string;
   interpretation: string;
-  category: string;
-}
-
-// Другие интерфейсы остаются без изменений...
-interface TarotCard {
-  name: string;
-  category: string;
-  uprightImage: string;
-  reversedImage: string;
-  uprightInterpretation: string;
-  reversedInterpretation: string;
 }
 
 class ApiService {
@@ -94,11 +84,8 @@ class ApiService {
     const startTime = performance.now();
     
     try {
-      // Получаем токен аутентификации автоматически
       const token = await getValidAuthToken();
-      
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -110,12 +97,21 @@ class ApiService {
       const duration = performance.now() - startTime;
       const success = response.ok;
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      const serverResponse = await response.json().catch(() => ({} as any));
 
-      const serverResponse = await response.json();
-      console.log('📥 Raw server response:', serverResponse);
+      if (!response.ok) {
+        // unify subscriptionRequired handling
+        if (response.status === 403) {
+          return {
+            success: false,
+            data: null as T,
+            error: (serverResponse as any).error || `HTTP error! status: ${response.status}`,
+            subscriptionRequired: (serverResponse as any).subscriptionRequired !== false,
+            subscriptionInfo: (serverResponse as any).subscriptionInfo,
+          };
+        }
+        throw new Error((serverResponse as any).error || `HTTP error! status: ${response.status}`);
+      }
       
       // Если сервер возвращает структуру { success: true, data: ... }, извлекаем data
       if (serverResponse.success && serverResponse.data) {
@@ -126,35 +122,27 @@ class ApiService {
           subscriptionInfo: serverResponse.subscriptionInfo
         };
       }
-
-      // Если сервер возвращает { success: true, readings: ... } (для истории)
-      if (serverResponse.success && serverResponse.readings) {
-        return { 
-          success: true, 
-          data: { readings: serverResponse.readings } as T,
-          subscriptionRequired: serverResponse.subscriptionRequired,
-          subscriptionInfo: serverResponse.subscriptionInfo
-        };
-      }
-
-      // Иначе считаем весь ответ данными
+      
+      // Иначе возвращаем весь ответ
       return { 
         success: true, 
-        data: serverResponse as T,
+        data: serverResponse,
+        subscriptionRequired: serverResponse.subscriptionRequired,
         subscriptionInfo: serverResponse.subscriptionInfo
       };
     } catch (error) {
-      const duration = performance.now() - startTime;
-      console.error('API request error:', error, { endpoint, duration });
+      console.error('API request failed:', error);
+
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return { 
         success: false, 
         data: null as T, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: errorMessage,
       };
     }
   }
 
-  async getDailyAdvice(): Promise<ApiResponse<String>> {
+  async getDailyAdvice(): Promise<ApiResponse<DailyAdviceResponse>> {
     // Отключаем кэширование для получения разных карт каждый раз
     const response = await this.request<DailyAdviceResponse>('/api/tarot/daily-advice', {
       method: 'POST',
@@ -163,78 +151,130 @@ class ApiService {
     return response;
   }
 
-  async getThreeCardsReading(category: string, userQuestion?: string): Promise<ApiResponse<ThreeCardsReading>> {
-    return this.request<ThreeCardsReading>('/api/tarot/three-cards', {
+  async getThreeCardsReading(category: string, userQuestion?: string): Promise<ApiResponse<{
+    readingId: string;
+    cards: TarotCard[];
+    interpretation: string;
+    category: string;
+  }>> {
+    return this.request<{
+      readingId: string;
+      cards: TarotCard[];
+      interpretation: string;
+      category: string;
+    }>('/api/tarot/three-cards', {
       method: 'POST',
       body: JSON.stringify({ category, userQuestion }),
     });
   }
 
-  async getYesNoReading(question: string): Promise<ApiResponse<YesNoResult>> {
-    return this.request<YesNoResult>('/api/tarot/yes-no', {
+  async getYesNoAnswer(question: string): Promise<ApiResponse<YesNoResponse>> {
+    return this.request<YesNoResponse>('/api/tarot/yes-no', {
       method: 'POST',
       body: JSON.stringify({ question }),
     });
   }
 
-  async saveThreeCardsReading(question: string, card: CardData[], interpretation: string, category: string, readingId: string): Promise<ApiResponse<{ success: boolean }>> {
-    return this.request<{ success: boolean }>('/api/tarot/save-three-cards', {
+  async getClarifyingAnswer(
+    question: string,
+    card: TarotCard,
+    interpretation: string,
+    category: string,
+    readingId?: string
+  ): Promise<ApiResponse<{ answer: string; card: TarotCard }>> {
+    return this.request<{ answer: string; card: TarotCard }>('/api/tarot/clarifying-answer', {
       method: 'POST',
       body: JSON.stringify({ question, card, interpretation, category, readingId }),
     });
   }
 
-  async saveYesNoReading(readingId: string, question: string, card: CardData[], interpretation: string): Promise<ApiResponse<{ success: boolean }>> {
-    return this.request<{ success: boolean }>('/api/tarot/save-yes-no', {
+  async saveClarifyingQuestion(
+    readingId: string,
+    question: string,
+    card: TarotCard,
+    interpretation: string
+  ): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request<{ success: boolean }>('/api/tarot/clarifying-question', {
       method: 'POST',
       body: JSON.stringify({ readingId, question, card, interpretation }),
     });
   }
 
-  async getCardEnrichment(cardName: string, category: string): Promise<ApiResponse<any>> {
-    return this.request<any>('/api/tarot/enrich-card', {
+  async getCardDetailedDescription(cardName: string, category: string): Promise<ApiResponse<{ description: string }>> {
+    return this.request<{ description: string }>('/api/tarot/card-details', {
       method: 'POST',
       body: JSON.stringify({ cardName, category }),
     });
   }
 
-  async getHistory(): Promise<ApiResponse<{ readings: TarotReading[] }>> {
-    const response = await this.request<{ readings: TarotReading[] }>('/api/tarot/history');
-    console.log('📚 History API response:', response);
+  async getHistory(): Promise<ApiResponse<{ readings: any[] }>> {
+    // Делаем запрос напрямую (не используем кэш для проверки подписки)
+    const response = await this.request<{ readings: any[] }>('/api/tarot/history', {
+      method: 'GET',
+    });
+
+    // Сохраняем в кэш только при успешном ответе и наличии подписки
+    if (response.success && response.data && !response.subscriptionRequired) {
+      historyCache.set(response.data.readings);
+    } else if (response.subscriptionRequired) {
+      // Очищаем кэш при отсутствии подписки
+      historyCache.clear();
+    }
+
     return response;
   }
 
-  async getSubscriptionStatus(userId: string): Promise<ApiResponse<{ subscriptionInfo: any }>> {
-    return this.request<{ subscriptionInfo: any }>(`/api/subscription/${userId}/status`);
+  // Fast tarot availability (used for UI locking)
+  async getTarotSubscriptionStatus(): Promise<ApiResponse<{ subscriptionInfo: any }>> {
+    return this.request<{ subscriptionInfo: any }>('/api/tarot/subscription-status', {
+      method: 'GET',
+    });
   }
 
-  async generateSubscriptionPayment(spreadType: string): Promise<ApiResponse<any>> {
-    return this.request<any>('/api/subscription/generate-payment', {
+  // Новые методы для управления подписками
+  async registerUser(userData: {
+    telegramId: number;
+    firstName: string;
+    lastName?: string;
+    username?: string;
+    languageCode?: string;
+  }): Promise<ApiResponse<{ user: any; subscriptionInfo: any }>> {
+    return this.request<{ user: any; subscriptionInfo: any }>('/api/subscription/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async getSubscriptionStatus(userId: string): Promise<ApiResponse<{ subscriptionInfo: any }>> {
+    return this.request<{ subscriptionInfo: any }>(`/api/subscription/${userId}/status`, {
+      method: 'GET',
+    });
+  }
+
+  async useSpread(userId: string, spreadType: 'daily' | 'yesno' | 'three_cards'): Promise<ApiResponse<{ subscriptionInfo: any }>> {
+    return this.request<{ subscriptionInfo: any }>(`/api/subscription/${userId}/use-spread`, {
       method: 'POST',
       body: JSON.stringify({ spreadType }),
     });
   }
 
-  async getClarifyingAnswer(
-    clarifyingQuestion: string,
-    originalCard: any,
-    originalInterpretation: string,
-    readingType: string,
-    readingId?: string,
-    originalQuestion?: string
-  ): Promise<ApiResponse<{ answer: string; yesNoAnswer?: 'Да' | 'Нет'; card?: any }>> {
-    // Убеждаемся, что originalQuestion всегда передается
-    const finalOriginalQuestion = originalQuestion || clarifyingQuestion;
-    
-    return this.request<{ answer: string; yesNoAnswer?: 'Да' | 'Нет'; card?: any }>('/api/tarot/clarifying-question', {
+  // Fast tarot availability (used for UI locking)
+  async getTarotSubscriptionStatus(): Promise<ApiResponse<{ subscriptionInfo: any }>> {
+    return this.request<{ subscriptionInfo: any }>('/api/tarot/subscription-status', {
+      method: 'GET',
+    });
+  }
+
+  async activateSubscription(userId: string, subscriptionExpiry: string): Promise<ApiResponse<{ subscriptionInfo: any }>> {
+    return this.request<{ subscriptionInfo: any }>(`/api/subscription/${userId}/subscribe`, {
       method: 'POST',
-      body: JSON.stringify({
-        clarifyingQuestion,
-        originalQuestion: finalOriginalQuestion,
-        originalCard,
-        originalInterpretation,
-        readingType
-      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ subscriptionExpiry }),
     });
   }
 }
