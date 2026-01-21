@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { tarotCards } from '@/data/tarotCards';
 import { apiService } from '@/services/api';
+import { applySubscriptionInfo } from '@/state/subscriptionStore';
 
 // Импорт TarotLoader из OneCardScreen
 import { TarotLoader } from './OneCardScreen';
@@ -99,6 +100,10 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
 
     try {
       const response = await apiService.getYesNoReading(question);
+      // Always apply subscription/cooldown snapshot from backend response (even on errors)
+      if ((response as any)?.subscriptionInfo) {
+        applySubscriptionInfo((response as any).subscriptionInfo);
+      }
       
       if (response.success && response.data) {
         // Преобразуем формат ответа API в формат, который ожидает компонент

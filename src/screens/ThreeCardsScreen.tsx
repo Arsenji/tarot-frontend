@@ -5,6 +5,7 @@ import { ArrowLeft, Heart, Briefcase, Star, Sparkles, AlertCircle } from 'lucide
 import { useState, useEffect, useMemo } from 'react';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { apiService } from '@/services/api';
+import { applySubscriptionInfo } from '@/state/subscriptionStore';
 import { TarotCard } from '@/types/tarot';
 import { TarotLoader } from './OneCardScreen';
 import { formatInterpretationText } from '@/utils/textFormatting';
@@ -289,6 +290,10 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
     
     try {
       const response = await apiService.getThreeCardsReading(selectedCategory, userQuestion);
+      // Always apply subscription/cooldown snapshot from backend response (even on errors)
+      if ((response as any)?.subscriptionInfo) {
+        applySubscriptionInfo((response as any).subscriptionInfo);
+      }
       
       if (response.success && response.data) {
         // Преобразуем карты из API в формат, который ожидает компонент

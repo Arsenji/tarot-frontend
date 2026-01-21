@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { tarotCards } from '@/data/tarotCards';
 import { apiService } from '@/services/api';
+import { applySubscriptionInfo } from '@/state/subscriptionStore';
 
 // Фоновые карты для атмосферы (убраны внешние ссылки на unsplash для избежания таймаутов)
 const backgroundCards: Array<{ src: string; alt: string }> = [];
@@ -250,6 +251,10 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
     try {
       // Получаем совет от AI
       const response = await apiService.getDailyAdvice();
+      // Always apply subscription/cooldown snapshot from backend response (even on errors)
+      if ((response as any)?.subscriptionInfo) {
+        applySubscriptionInfo((response as any).subscriptionInfo);
+      }
       
       if (response.success && response.data) {
         // Преобразуем карту из API в формат локальных карт

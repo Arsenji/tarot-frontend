@@ -120,6 +120,19 @@ function computeCooldownEndsAt(info: any, baseTs: number): CooldownEndsAt {
   };
 }
 
+export function applySubscriptionInfo(info: any, opts?: { ts?: number }): void {
+  if (!info) return;
+  const ts = typeof opts?.ts === 'number' ? opts.ts : Date.now();
+  safeSetCachedInfo(info, ts);
+  setState({
+    subscriptionInfo: info,
+    cooldownEndsAt: computeCooldownEndsAt(info, ts),
+    isLoaded: true,
+    loading: false,
+    error: undefined,
+  });
+}
+
 export function bootstrapSubscriptionStatus(): Promise<void> {
   if (inFlight) return inFlight;
 
