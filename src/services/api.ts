@@ -6,6 +6,12 @@ export interface ApiResponse<T> {
   data: T;
   error?: string;
   subscriptionRequired?: boolean;
+  reason?: string;
+  cooldown?: {
+    msRemaining?: number;
+    hoursRemaining?: number;
+    nextAvailableAt?: string;
+  };
   subscriptionInfo?: {
     hasSubscription: boolean;
     isExpired: boolean;
@@ -107,6 +113,8 @@ class ApiService {
             data: null as T,
             error: (serverResponse as any).error || `HTTP error! status: ${response.status}`,
             subscriptionRequired: (serverResponse as any).subscriptionRequired !== false,
+            reason: (serverResponse as any).reason,
+            cooldown: (serverResponse as any).cooldown,
             subscriptionInfo: (serverResponse as any).subscriptionInfo,
           };
         }

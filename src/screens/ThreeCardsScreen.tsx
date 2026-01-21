@@ -6,9 +6,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { apiService } from '@/services/api';
 import { applySubscriptionInfo } from '@/state/subscriptionStore';
+import { applyCooldownOverride } from '@/state/subscriptionStore';
 import { TarotCard } from '@/types/tarot';
 import { TarotLoader } from './OneCardScreen';
 import { formatInterpretationText } from '@/utils/textFormatting';
+import { BlockedTarotModal } from '@/components/BlockedTarotModal';
 
 // Категории гадания
 const categories = [
@@ -144,6 +146,8 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
   const [showClarifyingInput, setShowClarifyingInput] = useState(false);
   const [currentClarifyingQuestion, setCurrentClarifyingQuestion] = useState('');
   const [showValidationError, setShowValidationError] = useState(false);
+  const [blockedOpen, setBlockedOpen] = useState(false);
+  const [blockedNextAt, setBlockedNextAt] = useState<Date | undefined>(undefined);
 
   const selectedCategoryData = categories.find(cat => cat.id === selectedCategory);
 
@@ -294,6 +298,21 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
       if ((response as any)?.subscriptionInfo) {
         applySubscriptionInfo((response as any).subscriptionInfo);
       }
+
+      if (!response.success) {
+        const cooldown = (response as any).cooldown;
+        const nextIso = cooldown?.nextAvailableAt;
+        const nextAtMs = typeof nextIso === 'string' ? Date.parse(nextIso) : NaN;
+        const fallbackNextAtMs = Date.now() + 24 * 60 * 60 * 1000;
+        const finalNextAtMs = Number.isFinite(nextAtMs) ? nextAtMs : fallbackNextAtMs;
+        applyCooldownOverride('threeCards', finalNextAtMs);
+        setBlockedNextAt(new Date(finalNextAtMs));
+        setBlockedOpen(true);
+        setIsShuffling(false);
+        setIsReading(false);
+        setIsLoading(false);
+        return;
+      }
       
       if (response.success && response.data) {
         // Преобразуем карты из API в формат, который ожидает компонент
@@ -345,6 +364,12 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 overflow-y-auto">
+      <BlockedTarotModal
+        isOpen={blockedOpen}
+        onClose={() => setBlockedOpen(false)}
+        tarotType="threeCards"
+        nextAvailableAt={blockedNextAt}
+      />
       {/* Background with stars */}
       <div 
         className="absolute inset-0 opacity-20"

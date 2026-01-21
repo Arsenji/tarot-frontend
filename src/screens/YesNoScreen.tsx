@@ -9,6 +9,8 @@ import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { tarotCards } from '@/data/tarotCards';
 import { apiService } from '@/services/api';
 import { applySubscriptionInfo } from '@/state/subscriptionStore';
+import { applyCooldownOverride } from '@/state/subscriptionStore';
+import { BlockedTarotModal } from '@/components/BlockedTarotModal';
 
 // Импорт TarotLoader из OneCardScreen
 import { TarotLoader } from './OneCardScreen';
@@ -52,6 +54,8 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [selectedCardForDescription, setSelectedCardForDescription] = useState<any>(null);
   const [isInterpretationExpanded, setIsInterpretationExpanded] = useState<{[key: string]: boolean}>({});
+  const [blockedOpen, setBlockedOpen] = useState(false);
+  const [blockedNextAt, setBlockedNextAt] = useState<Date | undefined>(undefined);
 
   // Валидация вопроса
   const validateQuestion = (text: string): boolean => {
@@ -103,6 +107,18 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
       // Always apply subscription/cooldown snapshot from backend response (even on errors)
       if ((response as any)?.subscriptionInfo) {
         applySubscriptionInfo((response as any).subscriptionInfo);
+      }
+
+      if (!response.success) {
+        const cooldown = (response as any).cooldown;
+        const nextIso = cooldown?.nextAvailableAt;
+        const nextAtMs = typeof nextIso === 'string' ? Date.parse(nextIso) : NaN;
+        const fallbackNextAtMs = Date.now() + 24 * 60 * 60 * 1000;
+        const finalNextAtMs = Number.isFinite(nextAtMs) ? nextAtMs : fallbackNextAtMs;
+        applyCooldownOverride('yesNo', finalNextAtMs);
+        setBlockedNextAt(new Date(finalNextAtMs));
+        setBlockedOpen(true);
+        return;
       }
       
       if (response.success && response.data) {
@@ -359,6 +375,12 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 overflow-y-auto">
+      <BlockedTarotModal
+        isOpen={blockedOpen}
+        onClose={() => setBlockedOpen(false)}
+        tarotType="yesNo"
+        nextAvailableAt={blockedNextAt}
+      />
       {/* Background with stars */}
       <div 
         className="absolute inset-0 opacity-20"

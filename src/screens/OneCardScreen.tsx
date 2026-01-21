@@ -8,6 +8,8 @@ import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { tarotCards } from '@/data/tarotCards';
 import { apiService } from '@/services/api';
 import { applySubscriptionInfo } from '@/state/subscriptionStore';
+import { applyCooldownOverride } from '@/state/subscriptionStore';
+import { BlockedTarotModal } from '@/components/BlockedTarotModal';
 
 // Фоновые карты для атмосферы (убраны внешние ссылки на unsplash для избежания таймаутов)
 const backgroundCards: Array<{ src: string; alt: string }> = [];
@@ -224,6 +226,8 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
   const [showDeck, setShowDeck] = useState(true); // Новое состояние для показа колоды
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [selectedCardForDescription, setSelectedCardForDescription] = useState<any>(null);
+  const [blockedOpen, setBlockedOpen] = useState(false);
+  const [blockedNextAt, setBlockedNextAt] = useState<Date | undefined>(undefined);
 
   // Функции для модального окна подробного описания
   const openDescriptionModal = (card: any) => {
@@ -254,6 +258,21 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
       // Always apply subscription/cooldown snapshot from backend response (even on errors)
       if ((response as any)?.subscriptionInfo) {
         applySubscriptionInfo((response as any).subscriptionInfo);
+      }
+
+      // If backend says cooldown is active, do NOT fallback to random card.
+      if (!response.success) {
+        const cooldown = (response as any).cooldown;
+        const nextIso = cooldown?.nextAvailableAt;
+        const nextAtMs = typeof nextIso === 'string' ? Date.parse(nextIso) : NaN;
+        const fallbackNextAtMs = Date.now() + 24 * 60 * 60 * 1000;
+        const finalNextAtMs = Number.isFinite(nextAtMs) ? nextAtMs : fallbackNextAtMs;
+        applyCooldownOverride('daily', finalNextAtMs);
+        setBlockedNextAt(new Date(finalNextAtMs));
+        setBlockedOpen(true);
+        setShowDeck(true);
+        setIsDrawing(false);
+        return;
       }
       
       if (response.success && response.data) {
@@ -309,6 +328,12 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 overflow-y-auto">
+      <BlockedTarotModal
+        isOpen={blockedOpen}
+        onClose={() => setBlockedOpen(false)}
+        tarotType="daily"
+        nextAvailableAt={blockedNextAt}
+      />
       {/* Background with stars - убрана ссылка на unsplash для избежания таймаутов */}
       <div 
         className="absolute inset-0 opacity-20 bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900"

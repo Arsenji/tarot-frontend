@@ -241,14 +241,14 @@ function computeFreeUserAvailability(info: any, type: TarotType, cooldownEndsAt:
   // - each spread is available once per 24h
   // - availability is determined ONLY by time (lastUsedAt + 24h)
   // We model this using backend-provided cooldowns (ms remaining) and per-spread used flags.
-  const used = getFreeUsedFlag(info, type);
-  if (!used) return { allowed: true };
-
   const endsAt = cooldownEndsAt?.[type];
   if (typeof endsAt === 'number') {
     if (Date.now() >= endsAt) return { allowed: true };
     return { allowed: false, nextAvailableAt: new Date(endsAt) };
   }
+
+  const used = getFreeUsedFlag(info, type);
+  if (!used) return { allowed: true };
 
   // Fallbacks (should be rare):
   // - if cooldown endsAt isn't available, prefer canUse* flags (time-derived)
@@ -259,6 +259,13 @@ function computeFreeUserAvailability(info: any, type: TarotType, cooldownEndsAt:
   if (msRemaining != null && msRemaining > 0) return { allowed: false, nextAvailableAt: new Date(Date.now() + msRemaining) };
 
   return { allowed: false };
+}
+
+export function applyCooldownOverride(type: TarotType, nextAvailableAtMs: number): void {
+  if (!Number.isFinite(nextAvailableAtMs)) return;
+  setState({
+    cooldownEndsAt: { ...state.cooldownEndsAt, [type]: nextAvailableAtMs },
+  });
 }
 
 export function getTarotAvailability(type: TarotType): TarotAvailability {
