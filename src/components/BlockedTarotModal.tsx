@@ -9,7 +9,6 @@ type TarotType = 'daily' | 'yesNo' | 'threeCards';
 type Props = {
   isOpen: boolean;
   onClose: () => void;
-  onSubscribe?: () => void;
   tarotType: TarotType;
   nextAvailableAt?: Date;
 };
@@ -18,7 +17,7 @@ function formatTime(date: Date): string {
   return new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(date);
 }
 
-export function BlockedTarotModal({ isOpen, onClose, onSubscribe, nextAvailableAt }: Props) {
+export function BlockedTarotModal({ isOpen, onClose, nextAvailableAt }: Props) {
   const timeText = useMemo(() => {
     if (!nextAvailableAt) return null;
     return `Доступен снова: ${formatTime(nextAvailableAt)}`;
@@ -58,14 +57,6 @@ export function BlockedTarotModal({ isOpen, onClose, onSubscribe, nextAvailableA
             </div>
 
             <div className="mt-6 flex justify-end gap-3">
-              {onSubscribe && (
-                <Button
-                  onClick={onSubscribe}
-                  className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-medium rounded-xl transition-all duration-300"
-                >
-                  Оформить подписку
-                </Button>
-              )}
               <Button
                 onClick={onClose}
                 className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-gray-200 border border-slate-400/30 rounded-xl text-sm font-medium transition-all duration-300"

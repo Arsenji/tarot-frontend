@@ -255,10 +255,6 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
       <BlockedTarotModal
         isOpen={blockedModalOpen}
         onClose={closeBlockedModal}
-        onSubscribe={() => {
-          closeBlockedModal();
-          handleOpenSubscriptionModal();
-        }}
         tarotType={blockedType}
         nextAvailableAt={blockedNextAvailableAt}
       />
