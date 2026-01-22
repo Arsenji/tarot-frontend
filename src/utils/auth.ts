@@ -10,6 +10,44 @@ export interface AuthTokenData {
   expires?: number | string;
 }
 
+function getTelegramUserIdSync(): number | null {
+  try {
+    const id = (window as any)?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    return typeof id === 'number' ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+function decodeJwtPayload(token: string): any | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '==='.slice((base64.length + 3) % 4);
+    const json = decodeURIComponent(
+      atob(padded)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+function isTokenForCurrentTelegramUser(token: string): boolean {
+  // If we can't read Telegram userId (e.g. opened outside Telegram), treat as NOT safe to reuse.
+  const currentTelegramId = getTelegramUserIdSync();
+  if (!currentTelegramId) return false;
+
+  const payload = decodeJwtPayload(token);
+  const tokenTelegramId = payload?.telegramId;
+  return typeof tokenTelegramId === 'number' && tokenTelegramId === currentTelegramId;
+}
+
 function getApiBaseUrl(): string {
   return process.env.NODE_ENV === 'production'
     ? 'https://tarot-tg-backend.onrender.com'
@@ -48,7 +86,11 @@ export const clearAuthTokens = (): void => {
 export const getAccessToken = (): string | null => {
   if (typeof window === 'undefined') return null;
   if (!isTokenValid()) return null;
-  return localStorage.getItem('authToken');
+  const token = localStorage.getItem('authToken');
+  if (!token) return null;
+  // Prevent leaking a cached token between Telegram accounts.
+  if (!isTokenForCurrentTelegramUser(token)) return null;
+  return token;
 };
 
 export const getAuthToken = async (): Promise<string | null> => {
@@ -103,10 +145,16 @@ export const getAuthToken = async (): Promise<string | null> => {
 
 export const getValidAuthToken = async (): Promise<string | null> => {
   if (typeof window === 'undefined') return null;
-  if (!isTokenValid()) {
+  const existing = localStorage.getItem('authToken');
+
+  // If token is expired or belongs to a different Telegram user, drop it and re-auth.
+  if (!isTokenValid() || (existing && !isTokenForCurrentTelegramUser(existing))) {
     clearAuthTokens();
     return await getAuthToken();
   }
-  return localStorage.getItem('authToken');
+
+  // Still ensure the token matches current Telegram user before returning.
+  if (existing && isTokenForCurrentTelegramUser(existing)) return existing;
+  return null;
 };
 
