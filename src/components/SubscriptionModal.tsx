@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { X, Crown, Star, Calendar, Sparkles } from 'lucide-react';
+import { SUBSCRIPTION_PLANS } from '@/constants/subscriptionPlans';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
@@ -19,6 +20,14 @@ export function SubscriptionModal({
   message, 
   showHistoryMessage = false 
 }: SubscriptionModalProps) {
+  const formatRub = (amount: number) =>
+    new Intl.NumberFormat('ru-RU', {
+      style: 'currency',
+      currency: 'RUB',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -65,6 +74,36 @@ export function SubscriptionModal({
                   </p>
                 </div>
               )}
+
+              {/* Plans (UI only) */}
+              <div className="bg-slate-700/30 rounded-xl p-4 border border-slate-500/20">
+                <div className="text-white text-sm font-semibold mb-3">Тарифы</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {SUBSCRIPTION_PLANS.map((plan) => (
+                    <div
+                      key={plan.id}
+                      className="rounded-xl border border-slate-500/20 bg-slate-800/40 p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-white text-sm font-medium truncate">
+                            {plan.title}
+                          </div>
+                          <div className="text-gray-400 text-xs mt-0.5">
+                            {plan.durationDays} дн.
+                          </div>
+                        </div>
+                        <div className="text-amber-300 text-sm font-semibold whitespace-nowrap">
+                          {formatRub(plan.priceRub)}
+                        </div>
+                      </div>
+                      <div className="text-gray-300 text-xs mt-2 leading-snug">
+                        {plan.description}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* Features */}
               <div className="space-y-3">
