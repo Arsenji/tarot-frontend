@@ -9,6 +9,7 @@ import { apiService } from '@/services/api';
 import { formatInterpretationText, truncateText } from '@/utils/textFormatting';
 import { SubscriptionModal } from '@/components/SubscriptionModal';
 import { tarotCards } from '@/data/tarotCards';
+import { getCategoryName, shouldShowCategory } from '@/utils/historyHelpers';
 
 interface HistoryCard {
   name: string;
@@ -224,27 +225,7 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
     return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const getCategoryName = (category: string | null | undefined): string => {
-    if (!category) return '';
-    
-    const categoryMap: { [key: string]: string } = {
-      'love': 'Любовь',
-      'career': 'Карьера',
-      'personal': 'Личное развитие',
-      'yesno': 'Да/Нет',
-      'major': 'Старшие Арканы',
-      'minor': 'Младшие Арканы',
-    };
-    
-    return categoryMap[category] || category;
-  };
-
-  const shouldShowCategory = (entry: HistoryEntry): boolean => {
-    if (entry.type !== 'three_cards') return false;
-    if (!entry.category) return false;
-    if (entry.category === 'major' || entry.category === 'minor') return false;
-    return true;
-  };
+  // getCategoryName and shouldShowCategory imported from @/utils/historyHelpers
 
   const getReadingTypeIcon = (type: string) => {
     switch (type) {
