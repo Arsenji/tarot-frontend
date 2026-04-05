@@ -231,10 +231,19 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
       'love': 'Любовь',
       'career': 'Карьера',
       'personal': 'Личное развитие',
-      'yesno': 'Да/Нет'
+      'yesno': 'Да/Нет',
+      'major': 'Старшие Арканы',
+      'minor': 'Младшие Арканы',
     };
     
     return categoryMap[category] || category;
+  };
+
+  const shouldShowCategory = (entry: HistoryEntry): boolean => {
+    if (entry.type !== 'three_cards') return false;
+    if (!entry.category) return false;
+    if (entry.category === 'major' || entry.category === 'minor') return false;
+    return true;
   };
 
   const getReadingTypeIcon = (type: string) => {
@@ -336,7 +345,7 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
                   {getReadingTypeIcon(selectedEntry.type)}
                   <h3 className="text-white">{getReadingTypeName(selectedEntry.type)}</h3>
                 </div>
-                {selectedEntry.category && (
+                {shouldShowCategory(selectedEntry) && (
                   <p className="text-sm text-gray-300">Категория: {getCategoryName(selectedEntry.category)}</p>
                 )}
                 {selectedEntry.userQuestion && (
@@ -628,7 +637,7 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
                       </div>
                       <div>
                         <h3 className="text-white">{getReadingTypeName(entry.type)}</h3>
-                        {entry.category && (
+                        {shouldShowCategory(entry) && (
                           <p className="text-xs text-gray-400">{getCategoryName(entry.category)}</p>
                         )}
                         {entry.userQuestion && (
@@ -739,9 +748,7 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
                 <div>
                   <h3 className="text-white text-lg font-semibold">{selectedCardDetails.card.name}</h3>
                   <p className="text-gray-300 text-sm">
-                    {selectedCardDetails.category === 'love' ? 'Любовь' : 
-                     selectedCardDetails.category === 'work' ? 'Карьера' : 
-                     selectedCardDetails.category === 'career' ? 'Карьера' : 'Личное развитие'}
+                    {getCategoryName(selectedCardDetails.category) || 'Общее'}
                   </p>
                 </div>
               </div>
