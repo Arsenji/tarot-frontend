@@ -3,26 +3,33 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Sparkles, RefreshCw } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
-import { tarotCards } from '@/data/tarotCards';
 import { apiService } from '@/services/api';
-import { applySubscriptionInfo } from '@/state/subscriptionStore';
-import { applyCooldownOverride } from '@/state/subscriptionStore';
-import { BlockedTarotModal } from '@/components/BlockedTarotModal';
 
-// Фоновые карты для атмосферы (убраны внешние ссылки на unsplash для избежания таймаутов)
-const backgroundCards: Array<{ src: string; alt: string }> = [];
+type DisplayCard = {
+  name: string;
+  image: string;
+  imagePath?: string;
+  keywords?: string;
+  advice?: string;
+  meaning?: string;
+  isMajorArcana?: boolean;
+  suit?: string;
+  number?: number;
+};
+import { applySubscriptionInfo, applyCooldownOverride } from '@/state/subscriptionStore';
+import { BlockedTarotModal } from '@/components/BlockedTarotModal';
 
 interface TarotLoaderProps {
   message?: string;
 }
 
-export function TarotLoader({ message = "Перемешиваем карты..." }: TarotLoaderProps) {
+export function TarotLoader({ message }: TarotLoaderProps) {
   const [currentMessage, setCurrentMessage] = useState(0);
   
   const messages = [
-    "Перемешиваем карты...",
+    message || "Перемешиваем карты...",
     "Настраиваемся на энергию...",
     "Раскладываем карты...",
     "Читаем символы..."
@@ -219,18 +226,24 @@ interface OneCardScreenProps {
 }
 
 export function OneCardScreen({ onBack }: OneCardScreenProps) {
-  const [selectedCard, setSelectedCard] = useState<typeof tarotCards[0] | null>(null);
+  const [selectedCard, setSelectedCard] = useState<DisplayCard | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [showCard, setShowCard] = useState(false);
   const [aiAdvice, setAiAdvice] = useState<string>('');
-  const [showDeck, setShowDeck] = useState(true); // Новое состояние для показа колоды
+  const [apiError, setApiError] = useState<string>('');
+  const [showDeck, setShowDeck] = useState(true);
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
-  const [selectedCardForDescription, setSelectedCardForDescription] = useState<any>(null);
+  const [selectedCardForDescription, setSelectedCardForDescription] = useState<DisplayCard | null>(null);
   const [blockedOpen, setBlockedOpen] = useState(false);
   const [blockedNextAt, setBlockedNextAt] = useState<Date | undefined>(undefined);
 
-  // Функции для модального окна подробного описания
-  const openDescriptionModal = (card: any) => {
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    return () => { timersRef.current.forEach(clearTimeout); };
+  }, []);
+
+  const openDescriptionModal = (card: DisplayCard) => {
     setSelectedCardForDescription(card);
     setShowDescriptionModal(true);
   };
@@ -240,82 +253,77 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
     setSelectedCardForDescription(null);
   };
 
-  // Функция для вытягивания случайной карты с AI советом
   const drawCard = async () => {
     setIsDrawing(true);
     setShowCard(false);
-    setShowDeck(false); // Скрываем колоду
+    setShowDeck(false);
     setSelectedCard(null);
     setAiAdvice('');
+    setApiError('');
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
     
-    // Минимальное время показа лоадера (2 секунды)
     const minLoadingTime = 2000;
     const startTime = Date.now();
     
     try {
-      // Получаем совет от AI
       const response = await apiService.getDailyAdvice();
-      // Always apply subscription/cooldown snapshot from backend response (even on errors)
-      if ((response as any)?.subscriptionInfo) {
-        applySubscriptionInfo((response as any).subscriptionInfo);
+      const raw = response as any;
+      if (raw?.subscriptionInfo) {
+        applySubscriptionInfo(raw.subscriptionInfo);
       }
 
-      // If backend says cooldown is active, do NOT fallback to random card.
       if (!response.success) {
-        const cooldown = (response as any).cooldown;
+        const cooldown = raw?.cooldown;
         const nextIso = cooldown?.nextAvailableAt;
         const nextAtMs = typeof nextIso === 'string' ? Date.parse(nextIso) : NaN;
         const fallbackNextAtMs = Date.now() + 24 * 60 * 60 * 1000;
         const finalNextAtMs = Number.isFinite(nextAtMs) ? nextAtMs : fallbackNextAtMs;
-        applyCooldownOverride('daily', finalNextAtMs);
-        setBlockedNextAt(new Date(finalNextAtMs));
-        setBlockedOpen(true);
+
+        if (raw?.fallback) {
+          setApiError('AI временно недоступен. Попробуйте позже.');
+        } else {
+          applyCooldownOverride('daily', finalNextAtMs);
+          setBlockedNextAt(new Date(finalNextAtMs));
+          setBlockedOpen(true);
+        }
         setShowDeck(true);
         setIsDrawing(false);
         return;
       }
       
-      if (response.success && response.data) {
-        // Преобразуем карту из API в формат локальных карт
+      if (response.data) {
         const apiCard = response.data.card;
         const isReversed = apiCard.isReversed || false;
         const cardImage = isReversed 
           ? (apiCard.reversedImage || apiCard.image || '/images/placeholder.png')
           : (apiCard.uprightImage || apiCard.image || '/images/placeholder.png');
         
-        const localCard = {
-          ...apiCard,
-          image: cardImage,
-          imagePath: cardImage
-        };
-        setSelectedCard(localCard);
+        setSelectedCard({ ...apiCard, image: cardImage, imagePath: cardImage, name: apiCard.name });
         setAiAdvice(response.data.advice);
       } else {
-        
-        // Fallback к случайной карте, если API недоступен
-        const randomCard = tarotCards[Math.floor(Math.random() * tarotCards.length)];
-        setSelectedCard(randomCard);
-        setAiAdvice(randomCard.advice);
+        setApiError('Не удалось получить расклад. Попробуйте позже.');
+        setShowDeck(true);
+        setIsDrawing(false);
+        return;
       }
     } catch (error) {
       console.error('Error getting AI advice:', error);
-      // Fallback к случайной карте
-      const randomCard = tarotCards[Math.floor(Math.random() * tarotCards.length)];
-      setSelectedCard(randomCard);
-      setAiAdvice(randomCard.advice);
+      setApiError('Ошибка при обращении к серверу. Попробуйте позже.');
+      setShowDeck(true);
+      setIsDrawing(false);
+      return;
     }
     
-    // Ждем минимальное время показа лоадера
     const elapsedTime = Date.now() - startTime;
     const remainingTime = Math.max(0, minLoadingTime - elapsedTime);
     
-    setTimeout(() => {
+    const t1 = setTimeout(() => {
       setIsDrawing(false);
-      
-      setTimeout(() => {
-        setShowCard(true);
-      }, 300);
+      const t2 = setTimeout(() => setShowCard(true), 300);
+      timersRef.current.push(t2);
     }, remainingTime);
+    timersRef.current.push(t1);
   };
 
   // Функция для сброса к начальному состоянию
@@ -324,6 +332,7 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
     setShowDeck(true);
     setSelectedCard(null);
     setAiAdvice('');
+    setApiError('');
   };
 
   return (
@@ -424,6 +433,17 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
 
         {/* Card Area */}
         <div className="flex-1 flex flex-col items-center justify-center px-4">
+          {/* API Error */}
+          {apiError && showDeck && !isDrawing && (
+            <motion.div
+              className="w-full max-w-sm mb-4 bg-red-900/30 border border-red-400/30 rounded-2xl p-4 text-center"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <p className="text-red-300 text-sm">{apiError}</p>
+            </motion.div>
+          )}
+
           {/* Deck Display */}
           {showDeck && !isDrawing && (
             <motion.div
@@ -567,7 +587,7 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
                   <Sparkles className="w-4 h-4 text-amber-400 ml-2" />
                 </div>
                 <p className="text-white text-sm leading-relaxed">
-                  {aiAdvice || selectedCard.advice}
+                  {aiAdvice}
                 </p>
               </motion.div>
 
@@ -594,6 +614,7 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
           >
             <Button
               onClick={drawCard}
+              disabled={isDrawing}
               className="w-full h-12 bg-gradient-to-r from-amber-600/20 to-amber-500/20 hover:from-amber-600/30 hover:to-amber-500/30 text-white border-2 border-amber-400/30 rounded-2xl shadow-xl transition-all duration-300"
             >
               Вытянуть карту

@@ -3,13 +3,12 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { FloatingCard } from '@/components/FloatingCard';
-import { ArrowLeft, Send, X, AlertCircle } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { ArrowLeft, Send, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { tarotCards } from '@/data/tarotCards';
 import { apiService } from '@/services/api';
-import { applySubscriptionInfo } from '@/state/subscriptionStore';
-import { applyCooldownOverride } from '@/state/subscriptionStore';
+import { applySubscriptionInfo, applyCooldownOverride } from '@/state/subscriptionStore';
 import { BlockedTarotModal } from '@/components/BlockedTarotModal';
 
 // Импорт TarotLoader из OneCardScreen
@@ -19,21 +18,24 @@ interface YesNoScreenProps {
   onBack: () => void;
 }
 
+interface YesNoCard {
+  name: string;
+  imagePath?: string;
+  image?: string;
+  keywords?: string;
+  meaning?: string;
+  advice?: string;
+  isMajorArcana?: boolean;
+  suit?: string;
+  number?: number;
+}
+
 interface YesNoResult {
   readingId?: string;
   question: string;
-  card: {
-    name: string;
-    imagePath: string;
-    keywords: string;
-    meaning: string;
-    advice: string;
-    isMajorArcana: boolean;
-    suit: string;
-    number: number;
-  };
+  card: YesNoCard;
   answer: string;
-  yesNoAnswer?: 'Да' | 'Нет'; // Поле для точного определения ответа
+  yesNoAnswer?: 'Да' | 'Нет';
   interpretation: string;
 }
 
@@ -45,14 +47,15 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
   const [clarifyingQuestions, setClarifyingQuestions] = useState<Array<{
     question: string;
     answer?: string;
-    card?: any;
+    card?: YesNoCard;
     yesNoAnswer?: 'Да' | 'Нет' | null;
     isLoading?: boolean;
   }>>([]);
   const [showClarifyingInput, setShowClarifyingInput] = useState(false);
   const [currentClarifyingQuestion, setCurrentClarifyingQuestion] = useState('');
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
-  const [selectedCardForDescription, setSelectedCardForDescription] = useState<any>(null);
+  const [selectedCardForDescription, setSelectedCardForDescription] = useState<YesNoCard | null>(null);
+  const [apiError, setApiError] = useState<string>('');
   const [isInterpretationExpanded, setIsInterpretationExpanded] = useState<{[key: string]: boolean}>({});
   const [blockedOpen, setBlockedOpen] = useState(false);
   const [blockedNextAt, setBlockedNextAt] = useState<Date | undefined>(undefined);
@@ -92,7 +95,6 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
     return true;
   };
 
-  // Начать расклад
   const startReading = async () => {
     if (!validateQuestion(question)) {
       setShowValidationError(true);
@@ -101,47 +103,44 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
 
     setIsLoading(true);
     setShowValidationError(false);
+    setApiError('');
 
     try {
-      const response = await apiService.getYesNoReading(question);
-      // Always apply subscription/cooldown snapshot from backend response (even on errors)
-      if ((response as any)?.subscriptionInfo) {
-        applySubscriptionInfo((response as any).subscriptionInfo);
+      const response = await apiService.getYesNoAnswer(question);
+      const raw = response as any;
+      if (raw?.subscriptionInfo) {
+        applySubscriptionInfo(raw.subscriptionInfo);
       }
 
       if (!response.success) {
-        const cooldown = (response as any).cooldown;
-        const nextIso = cooldown?.nextAvailableAt;
-        const nextAtMs = typeof nextIso === 'string' ? Date.parse(nextIso) : NaN;
-        const fallbackNextAtMs = Date.now() + 24 * 60 * 60 * 1000;
-        const finalNextAtMs = Number.isFinite(nextAtMs) ? nextAtMs : fallbackNextAtMs;
-        applyCooldownOverride('yesNo', finalNextAtMs);
-        setBlockedNextAt(new Date(finalNextAtMs));
-        setBlockedOpen(true);
+        if (raw?.fallback) {
+          setApiError('AI временно недоступен. Попробуйте позже.');
+        } else {
+          const cooldown = raw?.cooldown;
+          const nextIso = cooldown?.nextAvailableAt;
+          const nextAtMs = typeof nextIso === 'string' ? Date.parse(nextIso) : NaN;
+          const fallbackNextAtMs = Date.now() + 24 * 60 * 60 * 1000;
+          const finalNextAtMs = Number.isFinite(nextAtMs) ? nextAtMs : fallbackNextAtMs;
+          applyCooldownOverride('yesNo', finalNextAtMs);
+          setBlockedNextAt(new Date(finalNextAtMs));
+          setBlockedOpen(true);
+        }
         return;
       }
       
-      if (response.success && response.data) {
-        // Преобразуем формат ответа API в формат, который ожидает компонент
+      if (response.data) {
         const apiData = response.data;
         
-        // Используем imagePath если он есть, иначе выбираем по isReversed
         let cardImage = apiData.card.imagePath;
         if (!cardImage) {
           cardImage = apiData.card.isReversed 
             ? apiData.card.reversedImage 
             : apiData.card.uprightImage;
         }
-        // Если все еще нет, используем image или uprightImage как fallback
         if (!cardImage) {
           cardImage = apiData.card.image || apiData.card.uprightImage;
         }
         
-        console.log('Card image path:', cardImage);
-        console.log('Card data:', apiData.card);
-        
-        // Определяем ответ "Да" или "Нет" из API ответа
-        // Берем первую строку ответа для определения
         let finalAnswer = 'НЕТ';
         let yesNoAnswer: 'Да' | 'Нет' = 'Нет';
         
@@ -171,53 +170,15 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
             number: 0,
           },
           answer: finalAnswer,
-          yesNoAnswer: yesNoAnswer, // Добавляем поле для точного определения
+          yesNoAnswer,
           interpretation: apiData.interpretation,
         });
       } else {
-        // Проверяем, требуется ли подписка
-        
-        // Fallback к случайной карте
-        const randomCard = tarotCards[Math.floor(Math.random() * tarotCards.length)];
-        const randomAnswer = Math.random() > 0.5 ? 'yes' : 'no';
-        
-        setResult({
-          question,
-          card: {
-            name: randomCard.name,
-            imagePath: randomCard.image,
-            keywords: randomCard.keywords,
-            meaning: randomCard.meaning,
-            advice: randomCard.advice,
-            isMajorArcana: randomCard.isMajorArcana,
-            suit: randomCard.suit,
-            number: randomCard.number,
-          },
-          answer: randomAnswer === 'yes' ? 'ДА' : 'НЕТ',
-          interpretation: `На основе карты "${randomCard.name}" ответ: ${randomAnswer === 'yes' ? 'Да' : 'Нет'}. ${randomCard.advice}`,
-        });
+        setApiError('Не удалось получить расклад. Попробуйте позже.');
       }
     } catch (error) {
       console.error('Error getting yes/no answer:', error);
-      // Fallback к случайной карте
-      const randomCard = tarotCards[Math.floor(Math.random() * tarotCards.length)];
-      const randomAnswer = Math.random() > 0.5 ? 'yes' : 'no';
-      
-      setResult({
-        question,
-        card: {
-          name: randomCard.name,
-          imagePath: randomCard.image,
-          keywords: randomCard.keywords,
-          meaning: randomCard.meaning,
-          advice: randomCard.advice,
-          isMajorArcana: randomCard.isMajorArcana,
-          suit: randomCard.suit,
-          number: randomCard.number,
-        },
-        answer: randomAnswer === 'yes' ? 'ДА' : 'НЕТ',
-        interpretation: `На основе карты "${randomCard.name}" ответ: ${randomAnswer === 'yes' ? 'Да' : 'Нет'}. ${randomCard.advice}`,
-      });
+      setApiError('Ошибка при обращении к серверу. Попробуйте позже.');
     } finally {
       setIsLoading(false);
     }
@@ -258,23 +219,23 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
       console.log('Response success:', response.success);
       console.log('Response data:', response.data);
 
-      // Проверяем структуру ответа
       let answer = 'Карты говорят, что ответ на ваш уточняющий вопрос требует более глубокого размышления.';
-      let clarifyingCard = result.card; // Используем карту из основного результата по умолчанию
+      let clarifyingCard: YesNoCard = result.card;
       let yesNoAnswer: 'Да' | 'Нет' | null = null;
       
       if (response.success && response.data) {
-        // Ответ может быть в response.data.answer или response.data.data.answer
-        if (response.data.answer) {
-          answer = response.data.answer;
-          clarifyingCard = response.data.card || result.card;
-          yesNoAnswer = response.data.yesNoAnswer || null;
-        } else if (response.data.data && response.data.data.answer) {
-          answer = response.data.data.answer;
-          clarifyingCard = response.data.data.card || result.card;
-          yesNoAnswer = response.data.data.yesNoAnswer || null;
+        const d = response.data;
+        const nested = d.data;
+        if (d.answer) {
+          answer = d.answer;
+          if (d.card) clarifyingCard = d.card as YesNoCard;
+          yesNoAnswer = d.yesNoAnswer || null;
+        } else if (nested?.answer) {
+          answer = nested.answer;
+          if (nested.card) clarifyingCard = nested.card as YesNoCard;
+          yesNoAnswer = nested.yesNoAnswer || null;
         } else {
-          console.error('Answer not found in response data:', response.data);
+          console.error('Answer not found in response data:', d);
         }
       } else {
         console.error('API request failed:', response.error);
@@ -316,40 +277,15 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
     }
   };
 
-  // Функции для модального окна подробного описания
-  const openDescriptionModal = (card: any) => {
-    // Если карта не имеет полных данных (meaning, advice, keywords), дополняем их из локального источника
-    let enrichedCard = { ...card };
+  const openDescriptionModal = (card: YesNoCard) => {
+    const localCard = tarotCards.find(c => c.name?.toLowerCase().trim() === card.name?.toLowerCase().trim());
     
-    // Ищем карту по имени в локальных данных (синхронно, так как tarotCards уже импортирован)
-    const localCard = tarotCards.find(c => {
-      const cardName = card.name?.toLowerCase().trim();
-      const localName = c.name?.toLowerCase().trim();
-      return cardName === localName;
-    });
-    
-    if (localCard) {
-      // Дополняем карту данными из локального источника
-      enrichedCard = {
-        ...card,
-        meaning: card.meaning || localCard.meaning || card.uprightInterpretation || card.reversedInterpretation || 'Значение карты',
-        advice: card.advice || localCard.advice || card.interpretation || 'Совет карты',
-        keywords: card.keywords || localCard.keywords || 'Ключевые слова'
-      };
-    } else {
-      // Если карта не найдена, используем значения по умолчанию или из интерпретации
-      enrichedCard = {
-        ...card,
-        meaning: card.meaning || card.uprightInterpretation || card.reversedInterpretation || 'Значение карты',
-        advice: card.advice || card.interpretation || 'Совет карты',
-        keywords: card.keywords || 'Ключевые слова'
-      };
-    }
-    
-    console.log('Opening description modal for card:', enrichedCard);
-    console.log('Card has meaning:', !!enrichedCard.meaning);
-    console.log('Card has advice:', !!enrichedCard.advice);
-    console.log('Card has keywords:', !!enrichedCard.keywords);
+    const enrichedCard: YesNoCard = {
+      ...card,
+      meaning: card.meaning || localCard?.meaning || 'Значение карты',
+      advice: card.advice || localCard?.advice || 'Совет карты',
+      keywords: card.keywords || localCard?.keywords || 'Ключевые слова',
+    };
     
     setSelectedCardForDescription(enrichedCard);
     setShowDescriptionModal(true);
@@ -360,7 +296,6 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
     setSelectedCardForDescription(null);
   };
 
-  // Начать заново
   const resetReading = () => {
     setQuestion('');
     setResult(null);
@@ -371,6 +306,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
     setShowDescriptionModal(false);
     setSelectedCardForDescription(null);
     setIsInterpretationExpanded({});
+    setApiError('');
   };
 
   return (
@@ -475,6 +411,17 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
 
         {/* Content Area */}
         <div className="flex-1 flex flex-col px-4 pb-8">
+          {/* API Error */}
+          {apiError && !result && !isLoading && (
+            <motion.div
+              className="max-w-md mx-auto w-full mb-4 bg-red-900/30 border border-red-400/30 rounded-2xl p-4 text-center"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <p className="text-red-300 text-sm">{apiError}</p>
+            </motion.div>
+          )}
+
           {!result && !isLoading && (
             <motion.div
               className="flex-1 flex flex-col justify-center"
@@ -507,7 +454,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
 
                   <Button
                     onClick={startReading}
-                    disabled={!question.trim()}
+                    disabled={!question.trim() || isLoading}
                     className="w-full h-12 bg-gradient-to-r from-amber-600/20 to-amber-500/20 hover:from-amber-600/30 hover:to-amber-500/30 text-white border-2 border-amber-400/30 rounded-2xl shadow-xl transition-all duration-300 disabled:opacity-50"
                   >
                     <Send className="w-5 h-5 mr-2" />
@@ -549,7 +496,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                     transition={{ duration: 1, delay: 0.3 }}
                   >
                     <ImageWithFallback
-                      src={result.card.imagePath}
+                      src={result.card.imagePath || result.card.image || '/images/placeholder.png'}
                       alt={result.card.name}
                       className="w-full h-full object-cover"
                     />
@@ -707,7 +654,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                                 {/* Кнопка подробного описания */}
                                 <motion.button
                                   className="w-full bg-slate-700/20 rounded-md p-1.5 border border-slate-500/10 cursor-pointer hover:bg-slate-600/30 transition-colors text-gray-400 text-xs mb-3"
-                                  onClick={() => openDescriptionModal(item.card)}
+                                  onClick={() => item.card && openDescriptionModal(item.card)}
                                   whileHover={{ scale: 1.02 }}
                                   whileTap={{ scale: 0.98 }}
                                 >
@@ -805,7 +752,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                       />
                       <Button
                         onClick={submitClarifyingQuestion}
-                        disabled={!currentClarifyingQuestion.trim()}
+                        disabled={!currentClarifyingQuestion.trim() || clarifyingQuestions.some(q => q.isLoading)}
                         className="w-full bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-400/30 rounded-lg py-2"
                       >
                         Отправить

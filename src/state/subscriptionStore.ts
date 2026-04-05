@@ -133,22 +133,28 @@ export function applySubscriptionInfo(info: any, opts?: { ts?: number }): void {
   });
 }
 
+const CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
+
 export function bootstrapSubscriptionStatus(): Promise<void> {
   if (inFlight) return inFlight;
 
   const cached = safeGetCachedInfo();
   if (cached) {
+    const isFresh = Date.now() - cached.ts < CACHE_TTL;
     setState({
       subscriptionInfo: cached.subscriptionInfo,
       cooldownEndsAt: computeCooldownEndsAt(cached.subscriptionInfo, cached.ts),
+      ...(isFresh ? { isLoaded: true } : {}),
     });
+    if (isFresh) {
+      console.log('Subscription: unlocked from fresh cache');
+    }
   }
 
   setState({ loading: true });
   inFlight = (async () => {
     const token = getAccessToken();
     if (!token) {
-      // do NOT mark loaded; we must wait for token, then request immediately
       console.log('Subscription: waiting for token');
       setState({ loading: false });
       return;
@@ -159,7 +165,7 @@ export function bootstrapSubscriptionStatus(): Promise<void> {
 
     const info = (resp as any).subscriptionInfo ?? (resp.data as any)?.subscriptionInfo;
     if (resp.success && info) {
-      console.log('Subscription: loaded');
+      console.log('Subscription: loaded from server');
       const ts = Date.now();
       safeSetCachedInfo(info, ts);
       setState({
@@ -172,7 +178,13 @@ export function bootstrapSubscriptionStatus(): Promise<void> {
       return;
     }
 
-    // Любая ошибка (включая 401) не должна ломать UI: применяем fallback locked.
+    // If we already unlocked from cache, keep the cached data instead of locking
+    if (state.isLoaded) {
+      console.log('Subscription: server failed, keeping cached data');
+      setState({ loading: false });
+      return;
+    }
+
     console.log('Subscription: failed, fallback applied');
     setState({
       subscriptionInfo: LOCKED_DEFAULT,
@@ -270,16 +282,14 @@ export function applyCooldownOverride(type: TarotType, nextAvailableAtMs: number
 
 export function getTarotAvailability(type: TarotType): TarotAvailability {
   const snap = getSubscriptionSnapshot();
-  if (!snap.loaded || snap.loading) return { allowed: false };
-  // If subscription bootstrap failed and fallback was applied, keep the UI locked
-  // (we must not grant access based on incomplete/unknown status).
-  if (snap.error) return { allowed: false };
+  // Block only when we have NO data at all. If loaded (even from cache) and a
+  // background refresh is running (loading=true), keep using cached data.
+  if (!snap.loaded) return { allowed: false };
+  if (snap.error && !snap.loading) return { allowed: false };
 
   const info = snap.subscriptionInfo;
-  // Business rules (PAID): always allowed, no cooldowns.
   if (!isFreeUser(info)) return { allowed: true };
 
-  // Business rules (FREE): block ONLY while cooldown is active.
   return computeFreeUserAvailability(info, type, snap.cooldownEndsAt);
 }
 

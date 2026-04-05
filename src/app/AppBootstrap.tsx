@@ -4,7 +4,6 @@ import React, { useEffect } from 'react';
 import { bootstrapAuth } from '@/state/authStore';
 import { bootstrapSubscriptionStatus } from '@/state/subscriptionStore';
 import { useAuthStatus } from '@/state/authStore';
-import { useSubscriptionStatus } from '@/state/subscriptionStore';
 
 type Props = {
   children: React.ReactNode;
@@ -14,23 +13,22 @@ let started = false;
 
 export function AppBootstrap({ children }: Props) {
   const auth = useAuthStatus();
-  const subscription = useSubscriptionStatus();
 
   useEffect(() => {
     if (started) return;
     started = true;
-    // Step 1: AuthBootstrap (only auth)
     bootstrapAuth().catch(() => {});
+    // Immediately hydrate from localStorage cache (no network needed).
+    // If cache is fresh (< 2h), this unlocks the UI instantly.
+    bootstrapSubscriptionStatus().catch(() => {});
   }, []);
 
   useEffect(() => {
-    // Step 2: Subscription bootstrap (ONLY after auth ready + token exists)
-    if (!auth.isReady) return;
-    if (!auth.token) return;
-    if (subscription.isLoaded || subscription.loaded) return;
-
+    // After auth completes with a token, refresh subscription from server.
+    // bootstrapSubscriptionStatus() will make a real network request this time.
+    if (!auth.isReady || !auth.token) return;
     bootstrapSubscriptionStatus().catch(() => {});
-  }, [auth.isReady, auth.token, subscription.isLoaded, subscription.loaded]);
+  }, [auth.isReady, auth.token]);
 
   return <>{children}</>;
 }

@@ -55,24 +55,33 @@ export interface TarotCard {
   };
 }
 
+export interface ApiCard {
+  name: string;
+  image?: string;
+  imagePath?: string;
+  uprightImage?: string;
+  reversedImage?: string;
+  isReversed?: boolean;
+  keywords?: string;
+  meaning?: string;
+  advice?: string;
+  uprightInterpretation?: string;
+  reversedInterpretation?: string;
+  isMajorArcana?: boolean;
+  category?: string;
+  suit?: string;
+  number?: number;
+}
+
 export interface DailyAdviceResponse {
   advice: string;
-  card: TarotCard;
+  card: ApiCard;
 }
 
 export interface YesNoResponse {
   readingId: string;
   question: string;
-  card: {
-    name: string;
-    imagePath: string;
-    keywords: string;
-    meaning: string;
-    advice: string;
-    isMajorArcana: boolean;
-    suit: string;
-    number: number;
-  };
+  card: ApiCard;
   answer: string;
   interpretation: string;
 }
@@ -185,14 +194,15 @@ class ApiService {
 
   async getClarifyingAnswer(
     question: string,
-    card: TarotCard,
+    card: TarotCard | ApiCard | Record<string, unknown>,
     interpretation: string,
     category: string,
-    readingId?: string
-  ): Promise<ApiResponse<{ answer: string; card: TarotCard }>> {
-    return this.request<{ answer: string; card: TarotCard }>('/api/tarot/clarifying-answer', {
+    readingId?: string,
+    originalQuestion?: string
+  ): Promise<ApiResponse<{ answer: string; card: ApiCard; yesNoAnswer?: 'Да' | 'Нет'; data?: { answer: string; card: ApiCard; yesNoAnswer?: 'Да' | 'Нет' } }>> {
+    return this.request<{ answer: string; card: ApiCard; yesNoAnswer?: 'Да' | 'Нет'; data?: { answer: string; card: ApiCard; yesNoAnswer?: 'Да' | 'Нет' } }>('/api/tarot/clarifying-answer', {
       method: 'POST',
-      body: JSON.stringify({ question, card, interpretation, category, readingId }),
+      body: JSON.stringify({ question, card, interpretation, category, readingId, originalQuestion }),
     });
   }
 

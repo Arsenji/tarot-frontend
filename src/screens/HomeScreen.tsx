@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { TarotLogo } from '@/components/TarotLogo';
 import BottomNavigation from '@/components/BottomNavigation';
-import { SparklesIcon, Calendar, HelpCircle, Lock } from 'lucide-react';
+import { SparklesIcon, Calendar, HelpCircle, Lock, Loader2 } from 'lucide-react';
 import { SubscriptionModal } from '@/components/SubscriptionModal';
 import { BlockedTarotModal } from '@/components/BlockedTarotModal';
 import { getTarotAvailability, type TarotType, useSubscriptionStatus } from '@/state/subscriptionStore';
@@ -57,6 +57,11 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
   const [blockedNextAvailableAt, setBlockedNextAvailableAt] = useState<Date | undefined>(undefined);
 
   const { loaded, loading, subscriptionInfo } = useSubscriptionStatus();
+  const isStatusLoading = !loaded;
+
+  const dailyAvail = getTarotAvailability('daily');
+  const yesNoAvail = getTarotAvailability('yesNo');
+  const threeCardsAvail = getTarotAvailability('threeCards');
 
   const handleOpenSubscriptionModal = () => setIsSubscriptionModalOpen(true);
   const handleCloseSubscriptionModal = () => setIsSubscriptionModalOpen(false);
@@ -70,12 +75,12 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
 
   const closeBlockedModal = () => setBlockedModalOpen(false);
 
-  const getStatusText = (type: TarotType) => {
+  const getStatusText = (type: TarotType, avail: TarotAvailability) => {
+    if (isStatusLoading) return 'Загрузка...';
     if (subscriptionInfo?.hasSubscription) return '';
-    const availability = getTarotAvailability(type);
-    if (availability.allowed) return 'Доступно';
-    if (availability.nextAvailableAt) {
-      const ms = availability.nextAvailableAt.getTime() - Date.now();
+    if (avail.allowed) return 'Доступно';
+    if (avail.nextAvailableAt) {
+      const ms = avail.nextAvailableAt.getTime() - Date.now();
       const hours = Math.max(1, Math.ceil(ms / (60 * 60 * 1000)));
       return `Использовано (осталось ${hours} ч)`;
     }
@@ -83,7 +88,7 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
   };
 
   const onTarotClick = (type: TarotType, start: () => void) => {
-    if (!loaded || loading) return;
+    if (!loaded) return;
     const availability = getTarotAvailability(type);
     if (!availability.allowed) {
       openBlockedModal(type);
@@ -103,8 +108,8 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
 
         <div className="w-full max-w-sm space-y-4 mt-8">
           <motion.div
-            whileHover={{ scale: getTarotAvailability('daily').allowed ? 1.02 : 1 }}
-            whileTap={{ scale: getTarotAvailability('daily').allowed ? 0.98 : 1 }}
+            whileHover={{ scale: dailyAvail.allowed ? 1.02 : 1 }}
+            whileTap={{ scale: dailyAvail.allowed ? 0.98 : 1 }}
             className="relative"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -113,34 +118,40 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
             <Button
               onClick={() => onTarotClick('daily', onOneCard)}
               className={`w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm ${
-                getTarotAvailability('daily').allowed
-                  ? 'bg-slate-800/50 hover:bg-slate-700/50 border-amber-400/30 hover:border-amber-400/50 hover:shadow-2xl cursor-pointer'
-                  : 'bg-slate-800/30 border-slate-600/30 opacity-60 cursor-not-allowed'
+                isStatusLoading
+                  ? 'bg-slate-800/40 border-slate-600/30 cursor-wait'
+                  : dailyAvail.allowed
+                    ? 'bg-slate-800/50 hover:bg-slate-700/50 border-amber-400/30 hover:border-amber-400/50 hover:shadow-2xl cursor-pointer'
+                    : 'bg-slate-800/30 border-slate-600/30 opacity-60 cursor-not-allowed'
               }`}
             >
               <div className="flex items-center space-x-6 w-full pl-2">
                 <div
                   className={`p-3 rounded-2xl border flex-shrink-0 ${
-                    getTarotAvailability('daily').allowed
-                      ? 'bg-amber-600/20 border-amber-400/30'
-                      : 'bg-slate-600/20 border-slate-500/30'
+                    isStatusLoading
+                      ? 'bg-slate-600/20 border-slate-500/30'
+                      : dailyAvail.allowed
+                        ? 'bg-amber-600/20 border-amber-400/30'
+                        : 'bg-slate-600/20 border-slate-500/30'
                   }`}
                 >
-                  {getTarotAvailability('daily').allowed ? (
+                  {isStatusLoading ? (
+                    <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+                  ) : dailyAvail.allowed ? (
                     <SparklesIcon className="w-6 h-6 text-amber-400" />
                   ) : (
                     <Lock className="w-6 h-6 text-slate-400" />
                   )}
                 </div>
                 <div className="text-left flex-1">
-                  <div className={`text-lg font-semibold ${getTarotAvailability('daily').allowed ? 'text-white' : 'text-slate-400'}`}>
+                  <div className={`text-lg font-semibold ${isStatusLoading ? 'text-slate-300' : dailyAvail.allowed ? 'text-white' : 'text-slate-400'}`}>
                     Одна карта
                   </div>
-                  <div className={`text-sm ${getTarotAvailability('daily').allowed ? 'text-gray-300' : 'text-slate-500'}`}>
+                  <div className={`text-sm ${isStatusLoading ? 'text-slate-500' : dailyAvail.allowed ? 'text-gray-300' : 'text-slate-500'}`}>
                     Совет дня
                   </div>
-                  {!subscriptionInfo?.hasSubscription && (
-                    <div className="text-xs text-amber-400 mt-1">{getStatusText('daily')}</div>
+                  {(!subscriptionInfo?.hasSubscription || isStatusLoading) && (
+                    <div className="text-xs text-amber-400 mt-1">{getStatusText('daily', dailyAvail)}</div>
                   )}
                 </div>
               </div>
@@ -148,8 +159,8 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
           </motion.div>
 
           <motion.div
-            whileHover={{ scale: getTarotAvailability('yesNo').allowed ? 1.02 : 1 }}
-            whileTap={{ scale: getTarotAvailability('yesNo').allowed ? 0.98 : 1 }}
+            whileHover={{ scale: yesNoAvail.allowed ? 1.02 : 1 }}
+            whileTap={{ scale: yesNoAvail.allowed ? 0.98 : 1 }}
             className="relative"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -158,34 +169,40 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
             <Button
               onClick={() => onTarotClick('yesNo', onYesNo)}
               className={`w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm ${
-                getTarotAvailability('yesNo').allowed
-                  ? 'bg-slate-800/50 hover:bg-slate-700/50 border-emerald-400/30 hover:border-emerald-400/50 hover:shadow-2xl'
-                  : 'bg-slate-800/30 border-slate-600/30 opacity-60'
+                isStatusLoading
+                  ? 'bg-slate-800/40 border-slate-600/30 cursor-wait'
+                  : yesNoAvail.allowed
+                    ? 'bg-slate-800/50 hover:bg-slate-700/50 border-emerald-400/30 hover:border-emerald-400/50 hover:shadow-2xl'
+                    : 'bg-slate-800/30 border-slate-600/30 opacity-60'
               }`}
             >
               <div className="flex items-center space-x-6 w-full pl-2">
                 <div
                   className={`p-3 rounded-2xl border flex-shrink-0 ${
-                    getTarotAvailability('yesNo').allowed
-                      ? 'bg-emerald-600/20 border-emerald-400/30'
-                      : 'bg-slate-600/20 border-slate-500/30'
+                    isStatusLoading
+                      ? 'bg-slate-600/20 border-slate-500/30'
+                      : yesNoAvail.allowed
+                        ? 'bg-emerald-600/20 border-emerald-400/30'
+                        : 'bg-slate-600/20 border-slate-500/30'
                   }`}
                 >
-                  {getTarotAvailability('yesNo').allowed ? (
+                  {isStatusLoading ? (
+                    <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+                  ) : yesNoAvail.allowed ? (
                     <HelpCircle className="w-6 h-6 text-emerald-400" />
                   ) : (
                     <Lock className="w-6 h-6 text-slate-400" />
                   )}
                 </div>
                 <div className="text-left flex-1">
-                  <div className={`text-lg font-semibold ${getTarotAvailability('yesNo').allowed ? 'text-white' : 'text-slate-400'}`}>
+                  <div className={`text-lg font-semibold ${isStatusLoading ? 'text-slate-300' : yesNoAvail.allowed ? 'text-white' : 'text-slate-400'}`}>
                     Да/Нет
                   </div>
-                  <div className={`text-sm ${getTarotAvailability('yesNo').allowed ? 'text-gray-300' : 'text-slate-500'}`}>
+                  <div className={`text-sm ${isStatusLoading ? 'text-slate-500' : yesNoAvail.allowed ? 'text-gray-300' : 'text-slate-500'}`}>
                     Быстрый ответ
                   </div>
-                  {!subscriptionInfo?.hasSubscription && (
-                    <div className="text-xs text-emerald-400 mt-1">{getStatusText('yesNo')}</div>
+                  {(!subscriptionInfo?.hasSubscription || isStatusLoading) && (
+                    <div className="text-xs text-emerald-400 mt-1">{getStatusText('yesNo', yesNoAvail)}</div>
                   )}
                 </div>
               </div>
@@ -193,8 +210,8 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
           </motion.div>
 
           <motion.div
-            whileHover={{ scale: getTarotAvailability('threeCards').allowed ? 1.02 : 1 }}
-            whileTap={{ scale: getTarotAvailability('threeCards').allowed ? 0.98 : 1 }}
+            whileHover={{ scale: threeCardsAvail.allowed ? 1.02 : 1 }}
+            whileTap={{ scale: threeCardsAvail.allowed ? 0.98 : 1 }}
             className="relative"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -203,38 +220,40 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
             <Button
               onClick={() => onTarotClick('threeCards', onThreeCards)}
               className={`w-full h-20 text-white border-2 rounded-3xl shadow-xl transition-all duration-300 backdrop-blur-sm ${
-                getTarotAvailability('threeCards').allowed
-                  ? 'bg-slate-800/50 hover:bg-slate-700/50 border-purple-400/30 hover:border-purple-400/50 hover:shadow-2xl'
-                  : 'bg-slate-800/30 border-slate-600/30 opacity-60'
+                isStatusLoading
+                  ? 'bg-slate-800/40 border-slate-600/30 cursor-wait'
+                  : threeCardsAvail.allowed
+                    ? 'bg-slate-800/50 hover:bg-slate-700/50 border-purple-400/30 hover:border-purple-400/50 hover:shadow-2xl'
+                    : 'bg-slate-800/30 border-slate-600/30 opacity-60'
               }`}
             >
               <div className="flex items-center space-x-6 w-full pl-2">
                 <div
                   className={`p-3 rounded-2xl border flex-shrink-0 ${
-                    getTarotAvailability('threeCards').allowed
-                      ? 'bg-purple-600/20 border-purple-400/30'
-                      : 'bg-slate-600/20 border-slate-500/30'
+                    isStatusLoading
+                      ? 'bg-slate-600/20 border-slate-500/30'
+                      : threeCardsAvail.allowed
+                        ? 'bg-purple-600/20 border-purple-400/30'
+                        : 'bg-slate-600/20 border-slate-500/30'
                   }`}
                 >
-                  {getTarotAvailability('threeCards').allowed ? (
+                  {isStatusLoading ? (
+                    <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+                  ) : threeCardsAvail.allowed ? (
                     <Calendar className="w-6 h-6 text-purple-400" />
                   ) : (
                     <Lock className="w-6 h-6 text-slate-400" />
                   )}
                 </div>
                 <div className="text-left flex-1">
-                  <div
-                    className={`text-lg font-semibold ${
-                      getTarotAvailability('threeCards').allowed ? 'text-white' : 'text-slate-400'
-                    }`}
-                  >
+                  <div className={`text-lg font-semibold ${isStatusLoading ? 'text-slate-300' : threeCardsAvail.allowed ? 'text-white' : 'text-slate-400'}`}>
                     Три карты
                   </div>
-                  <div className={`text-sm ${getTarotAvailability('threeCards').allowed ? 'text-gray-300' : 'text-slate-500'}`}>
+                  <div className={`text-sm ${isStatusLoading ? 'text-slate-500' : threeCardsAvail.allowed ? 'text-gray-300' : 'text-slate-500'}`}>
                     Прошлое–Настоящее–Будущее
                   </div>
-                  {!subscriptionInfo?.hasSubscription && (
-                    <div className="text-xs text-purple-400 mt-1">{getStatusText('threeCards')}</div>
+                  {(!subscriptionInfo?.hasSubscription || isStatusLoading) && (
+                    <div className="text-xs text-purple-400 mt-1">{getStatusText('threeCards', threeCardsAvail)}</div>
                   )}
                 </div>
               </div>
