@@ -202,7 +202,14 @@ class ApiService {
   ): Promise<ApiResponse<{ answer: string; card: ApiCard; yesNoAnswer?: 'Да' | 'Нет'; data?: { answer: string; card: ApiCard; yesNoAnswer?: 'Да' | 'Нет' } }>> {
     return this.request<{ answer: string; card: ApiCard; yesNoAnswer?: 'Да' | 'Нет'; data?: { answer: string; card: ApiCard; yesNoAnswer?: 'Да' | 'Нет' } }>('/api/tarot/clarifying-answer', {
       method: 'POST',
-      body: JSON.stringify({ question, card, interpretation, category, readingId, originalQuestion }),
+      body: JSON.stringify({
+        clarifyingQuestion: question,
+        originalCard: card,
+        originalInterpretation: interpretation,
+        readingType: category,
+        readingId,
+        originalQuestion,
+      }),
     });
   }
 
