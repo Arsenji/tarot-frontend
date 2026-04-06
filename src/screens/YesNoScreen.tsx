@@ -10,6 +10,7 @@ import { tarotCards } from '@/data/tarotCards';
 import { apiService } from '@/services/api';
 import { applySubscriptionInfo, applyCooldownOverride } from '@/state/subscriptionStore';
 import { BlockedTarotModal } from '@/components/BlockedTarotModal';
+import { trackTarotStarted, trackTarotCompleted } from '@/utils/analytics';
 
 // Импорт TarotLoader из OneCardScreen
 import { TarotLoader } from './OneCardScreen';
@@ -104,6 +105,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
     setIsLoading(true);
     setShowValidationError(false);
     setApiError('');
+    trackTarotStarted('yes_no');
 
     try {
       const response = await apiService.getYesNoAnswer(question);
@@ -113,6 +115,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
       }
 
       if (!response.success) {
+        trackTarotCompleted('yes_no', false);
         if (raw?.fallback) {
           setApiError('AI временно недоступен. Попробуйте позже.');
         } else {
@@ -173,10 +176,13 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
           yesNoAnswer,
           interpretation: apiData.interpretation,
         });
+        trackTarotCompleted('yes_no', true);
       } else {
+        trackTarotCompleted('yes_no', false);
         setApiError('Не удалось получить расклад. Попробуйте позже.');
       }
     } catch (error) {
+      trackTarotCompleted('yes_no', false);
       console.error('Error getting yes/no answer:', error);
       setApiError('Ошибка при обращении к серверу. Попробуйте позже.');
     } finally {

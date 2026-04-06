@@ -9,6 +9,7 @@ import { TarotCard } from '@/types/tarot';
 import { TarotLoader } from './OneCardScreen';
 import { formatInterpretationText } from '@/utils/textFormatting';
 import { BlockedTarotModal } from '@/components/BlockedTarotModal';
+import { trackTarotStarted, trackTarotCompleted } from '@/utils/analytics';
 
 // Категории гадания
 const categories = [
@@ -223,6 +224,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
     setRevealedCards([]);
     setError('');
     setShowValidationError(false);
+    trackTarotStarted('three_cards');
     
     try {
       const response = await apiService.getThreeCardsReading(selectedCategory, userQuestion);
@@ -232,6 +234,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
       }
 
       if (!response.success) {
+        trackTarotCompleted('three_cards', false);
         const raw = response as any;
         if (raw?.fallback) {
           setError('AI временно недоступен. Попробуйте позже.');
@@ -268,6 +271,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
         setApiCards(transformedCards);
         setApiInterpretation(response.data.interpretation);
         setCurrentReadingId(response.data.readingId);
+        trackTarotCompleted('three_cards', true);
         
         // Останавливаем анимацию тасования и показываем карты
         setIsShuffling(false);
@@ -288,6 +292,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
         setIsLoading(false);
       }
     } catch (error) {
+      trackTarotCompleted('three_cards', false);
       setError('Ошибка при обращении к серверу');
       setIsShuffling(false);
       setIsReading(false);

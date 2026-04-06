@@ -20,6 +20,7 @@ type DisplayCard = {
 };
 import { applySubscriptionInfo, applyCooldownOverride } from '@/state/subscriptionStore';
 import { BlockedTarotModal } from '@/components/BlockedTarotModal';
+import { trackTarotStarted, trackTarotCompleted } from '@/utils/analytics';
 
 interface TarotLoaderProps {
   message?: string;
@@ -262,6 +263,7 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
     setApiError('');
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
+    trackTarotStarted('one_card');
     
     const minLoadingTime = 2000;
     const startTime = Date.now();
@@ -274,6 +276,7 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
       }
 
       if (!response.success) {
+        trackTarotCompleted('one_card', false);
         const cooldown = raw?.cooldown;
         const nextIso = cooldown?.nextAvailableAt;
         const nextAtMs = typeof nextIso === 'string' ? Date.parse(nextIso) : NaN;
@@ -301,6 +304,7 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
         
         setSelectedCard({ ...apiCard, image: cardImage, imagePath: cardImage, name: apiCard.name });
         setAiAdvice(response.data.advice);
+        trackTarotCompleted('one_card', true);
       } else {
         setApiError('Не удалось получить расклад. Попробуйте позже.');
         setShowDeck(true);
@@ -308,6 +312,7 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
         return;
       }
     } catch (error) {
+      trackTarotCompleted('one_card', false);
       console.error('Error getting AI advice:', error);
       setApiError('Ошибка при обращении к серверу. Попробуйте позже.');
       setShowDeck(true);

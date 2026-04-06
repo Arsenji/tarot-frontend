@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { bootstrapAuth } from '@/state/authStore';
 import { bootstrapSubscriptionStatus } from '@/state/subscriptionStore';
 import { useAuthStatus } from '@/state/authStore';
+import { initAnalytics, identifyUser, trackAppOpened } from '@/utils/analytics';
 
 type Props = {
   children: React.ReactNode;
@@ -17,17 +18,27 @@ export function AppBootstrap({ children }: Props) {
   useEffect(() => {
     if (started) return;
     started = true;
+
+    initAnalytics();
+    trackAppOpened();
+
     bootstrapAuth().catch(() => {});
-    // Immediately hydrate from localStorage cache (no network needed).
-    // If cache is fresh (< 2h), this unlocks the UI instantly.
     bootstrapSubscriptionStatus().catch(() => {});
   }, []);
 
   useEffect(() => {
-    // After auth completes with a token, refresh subscription from server.
-    // bootstrapSubscriptionStatus() will make a real network request this time.
     if (!auth.isReady || !auth.token) return;
     bootstrapSubscriptionStatus().catch(() => {});
+
+    // Identify user for PostHog after auth resolves
+    try {
+      const telegramId = (window as any)?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      if (telegramId) {
+        identifyUser(telegramId);
+      }
+    } catch {
+      // outside Telegram
+    }
   }, [auth.isReady, auth.token]);
 
   return <>{children}</>;
