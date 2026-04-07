@@ -3,6 +3,7 @@
 import { motion } from 'motion/react';
 import { Crown, Star, Calendar, Sparkles, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { trackSubscriptionClicked } from '@/utils/analytics';
 
 interface SubscriptionStatusProps {
   subscriptionInfo?: {
@@ -68,8 +69,7 @@ export function SubscriptionStatus({
         </span>
         {!subscriptionInfo.hasSubscription && onUpgrade && (
           <Button
-            onClick={onUpgrade}
-            size="sm"
+            onClick={() => { trackSubscriptionClicked(); onUpgrade?.(); }}
             className="ml-2 px-3 py-1 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-400/30 rounded-lg text-xs"
           >
             <Crown className="w-3 h-3 mr-1" />
@@ -105,7 +105,7 @@ export function SubscriptionStatus({
         </div>
         {!subscriptionInfo.hasSubscription && onUpgrade && (
           <Button
-            onClick={onUpgrade}
+            onClick={() => { trackSubscriptionClicked(); onUpgrade?.(); }}
             className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-medium rounded-xl transition-all duration-300"
           >
             <Crown className="w-4 h-4 mr-2" />

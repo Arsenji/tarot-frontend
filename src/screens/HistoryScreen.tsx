@@ -9,6 +9,7 @@ import { apiService } from '@/services/api';
 import { formatInterpretationText, truncateText } from '@/utils/textFormatting';
 import { SubscriptionModal } from '@/components/SubscriptionModal';
 import { tarotCards } from '@/data/tarotCards';
+import { getCategoryName, shouldShowCategory } from '@/utils/historyHelpers';
 
 interface HistoryCard {
   name: string;
@@ -224,18 +225,7 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
     return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const getCategoryName = (category: string | null | undefined): string => {
-    if (!category) return '';
-    
-    const categoryMap: { [key: string]: string } = {
-      'love': 'Любовь',
-      'career': 'Карьера',
-      'personal': 'Личное развитие',
-      'yesno': 'Да/Нет'
-    };
-    
-    return categoryMap[category] || category;
-  };
+  // getCategoryName and shouldShowCategory imported from @/utils/historyHelpers
 
   const getReadingTypeIcon = (type: string) => {
     switch (type) {
@@ -336,7 +326,7 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
                   {getReadingTypeIcon(selectedEntry.type)}
                   <h3 className="text-white">{getReadingTypeName(selectedEntry.type)}</h3>
                 </div>
-                {selectedEntry.category && (
+                {shouldShowCategory(selectedEntry) && (
                   <p className="text-sm text-gray-300">Категория: {getCategoryName(selectedEntry.category)}</p>
                 )}
                 {selectedEntry.userQuestion && (
@@ -628,7 +618,7 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
                       </div>
                       <div>
                         <h3 className="text-white">{getReadingTypeName(entry.type)}</h3>
-                        {entry.category && (
+                        {shouldShowCategory(entry) && (
                           <p className="text-xs text-gray-400">{getCategoryName(entry.category)}</p>
                         )}
                         {entry.userQuestion && (
@@ -739,9 +729,7 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
                 <div>
                   <h3 className="text-white text-lg font-semibold">{selectedCardDetails.card.name}</h3>
                   <p className="text-gray-300 text-sm">
-                    {selectedCardDetails.category === 'love' ? 'Любовь' : 
-                     selectedCardDetails.category === 'work' ? 'Карьера' : 
-                     selectedCardDetails.category === 'career' ? 'Карьера' : 'Личное развитие'}
+                    {getCategoryName(selectedCardDetails.category) || 'Общее'}
                   </p>
                 </div>
               </div>

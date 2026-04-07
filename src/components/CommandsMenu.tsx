@@ -11,6 +11,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useState } from 'react';
+import { trackSubscriptionClicked } from '@/utils/analytics';
 
 interface CommandsMenuProps {
   onOpenApp?: () => void;
@@ -106,7 +107,7 @@ export function CommandsMenu({
                   <div className="grid grid-cols-2 gap-3">
                     <motion.button
                       className="bg-slate-700/50 hover:bg-slate-700 text-white font-medium py-3 px-4 rounded-xl border border-purple-400/30 transition-all flex items-center justify-center space-x-2"
-                      onClick={() => handleAction(onBuySubscription)}
+                      onClick={() => { trackSubscriptionClicked(); handleAction(onBuySubscription); }}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >

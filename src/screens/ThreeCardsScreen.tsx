@@ -1,16 +1,21 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Heart, Briefcase, Star, Sparkles, AlertCircle } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { apiService } from '@/services/api';
-import { applySubscriptionInfo } from '@/state/subscriptionStore';
-import { applyCooldownOverride } from '@/state/subscriptionStore';
+import {
+  applySubscriptionInfo,
+  applyCooldownOverride,
+  getSubscriptionSnapshot,
+  bootstrapSubscriptionStatus,
+} from '@/state/subscriptionStore';
+import { getNextMoscowMidnightMs } from '@/utils/moscowTime';
 import { TarotCard } from '@/types/tarot';
 import { TarotLoader } from './OneCardScreen';
 import { formatInterpretationText } from '@/utils/textFormatting';
 import { BlockedTarotModal } from '@/components/BlockedTarotModal';
+import { trackTarotStarted, trackTarotCompleted } from '@/utils/analytics';
 
 // Категории гадания
 const categories = [
@@ -43,77 +48,6 @@ const categories = [
   }
 ];
 
-// Данные карт для разных категорий
-const cardData = {
-  love: {
-    past: {
-      name: "Двойка Кубков",
-      image: "/images/rider-waite-tarot/minor_arcana_cups_2.png",
-      interpretation: "Прошлые отношения заложили основу для понимания истинной любви"
-    },
-    present: {
-      name: "Влюбленные",
-      image: "/images/rider-waite-tarot/major_arcana_lovers.png",
-      interpretation: "Важный выбор в отношениях. Время принять решение о будущем"
-    },
-    future: {
-      name: "Десятка Кубков",
-      image: "/images/rider-waite-tarot/minor_arcana_cups_10.png",
-      interpretation: "Гармония и счастье в отношениях. Исполнение сердечных желаний"
-    }
-  },
-  career: {
-    past: {
-      name: "Восьмерка Пентаклей",
-      image: "/images/rider-waite-tarot/minor_arcana_pentacles_8.png",
-      interpretation: "Усердная работа и обучение создали прочный фундамент для роста"
-    },
-    present: {
-      name: "Тройка Пентаклей",
-      image: "/images/rider-waite-tarot/minor_arcana_pentacles_3.png",
-      interpretation: "Сотрудничество и командная работа приведут к успеху"
-    },
-    future: {
-      name: "Десятка Пентаклей",
-      image: "/images/rider-waite-tarot/minor_arcana_pentacles_10.png",
-      interpretation: "Финансовая стабильность и долгосрочный успех в карьере"
-    }
-  },
-  personal: {
-    past: {
-      name: "Отшельник",
-      image: "/images/rider-waite-tarot/major_arcana_hermit.png",
-      interpretation: "Период внутреннего поиска и самопознания завершился важными откровениями"
-    },
-    present: {
-      name: "Звезда",
-      image: "/images/rider-waite-tarot/major_arcana_star.png",
-      interpretation: "Время исцеления и обновления. Ваша интуиция особенно сильна"
-    },
-    future: {
-      name: "Солнце",
-      image: "/images/rider-waite-tarot/major_arcana_sun.png",
-      interpretation: "Просветление и радость. Достижение внутренней гармонии и мудрости"
-    }
-  }
-};
-
-// Фоновые карты для атмосферы
-const backgroundCards = [
-  {
-    src: "/images/rider-waite-tarot/major_arcana_fool.png",
-    alt: "Mystical Tarot Card"
-  },
-  {
-    src: "/images/rider-waite-tarot/major_arcana_magician.png",
-    alt: "Mystical Tarot Card"
-  },
-  {
-    src: "/images/rider-waite-tarot/major_arcana_priestess.png",
-    alt: "Mystical Tarot Card"
-  }
-];
-
 interface ThreeCardsScreenProps {
   onBack: () => void;
 }
@@ -140,7 +74,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
   const [clarifyingQuestions, setClarifyingQuestions] = useState<Array<{
     question: string;
     answer?: string;
-    card?: any;
+    card?: TarotCard;
     isLoading?: boolean;
   }>>([]);
   const [showClarifyingInput, setShowClarifyingInput] = useState(false);
@@ -148,6 +82,11 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
   const [showValidationError, setShowValidationError] = useState(false);
   const [blockedOpen, setBlockedOpen] = useState(false);
   const [blockedNextAt, setBlockedNextAt] = useState<Date | undefined>(undefined);
+
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => {
+    return () => { timersRef.current.forEach(clearTimeout); };
+  }, []);
 
   const selectedCategoryData = categories.find(cat => cat.id === selectedCategory);
 
@@ -291,6 +230,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
     setRevealedCards([]);
     setError('');
     setShowValidationError(false);
+    trackTarotStarted('three_cards');
     
     try {
       const response = await apiService.getThreeCardsReading(selectedCategory, userQuestion);
@@ -300,14 +240,20 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
       }
 
       if (!response.success) {
-        const cooldown = (response as any).cooldown;
-        const nextIso = cooldown?.nextAvailableAt;
-        const nextAtMs = typeof nextIso === 'string' ? Date.parse(nextIso) : NaN;
-        const fallbackNextAtMs = Date.now() + 24 * 60 * 60 * 1000;
-        const finalNextAtMs = Number.isFinite(nextAtMs) ? nextAtMs : fallbackNextAtMs;
-        applyCooldownOverride('threeCards', finalNextAtMs);
-        setBlockedNextAt(new Date(finalNextAtMs));
-        setBlockedOpen(true);
+        trackTarotCompleted('three_cards', false);
+        const raw = response as any;
+        if (raw?.fallback) {
+          setError('AI временно недоступен. Попробуйте позже.');
+        } else {
+          const cooldown = raw?.cooldown;
+          const nextIso = cooldown?.nextAvailableAt;
+          const nextAtMs = typeof nextIso === 'string' ? Date.parse(nextIso) : NaN;
+          const fallbackNextAtMs = Date.now() + 24 * 60 * 60 * 1000;
+          const finalNextAtMs = Number.isFinite(nextAtMs) ? nextAtMs : fallbackNextAtMs;
+          applyCooldownOverride('threeCards', finalNextAtMs);
+          setBlockedNextAt(new Date(finalNextAtMs));
+          setBlockedOpen(true);
+        }
         setIsShuffling(false);
         setIsReading(false);
         setIsLoading(false);
@@ -331,6 +277,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
         setApiCards(transformedCards);
         setApiInterpretation(response.data.interpretation);
         setCurrentReadingId(response.data.readingId);
+        trackTarotCompleted('three_cards', true);
         
         // Останавливаем анимацию тасования и показываем карты
         setIsShuffling(false);
@@ -338,10 +285,20 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
         setIsLoading(false);
         setShowCards(true);
         
-        // Последовательное открытие карт
-        setTimeout(() => setRevealedCards([0]), 500);
-        setTimeout(() => setRevealedCards([0, 1]), 1000);
-        setTimeout(() => setRevealedCards([0, 1, 2]), 1500);
+        timersRef.current.forEach(clearTimeout);
+        timersRef.current = [];
+        const t1 = setTimeout(() => setRevealedCards([0]), 500);
+        const t2 = setTimeout(() => setRevealedCards([0, 1]), 1000);
+        const t3 = setTimeout(() => setRevealedCards([0, 1, 2]), 1500);
+        timersRef.current.push(t1, t2, t3);
+
+        if (!(response as any)?.subscriptionInfo) {
+          const snap = getSubscriptionSnapshot();
+          if (!snap.subscriptionInfo?.hasSubscription) {
+            applyCooldownOverride('threeCards', getNextMoscowMidnightMs());
+          }
+        }
+        void bootstrapSubscriptionStatus({ force: true });
       } else {
         setError(response.error || 'Ошибка при получении расклада');
         setIsShuffling(false);
@@ -349,6 +306,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
         setIsLoading(false);
       }
     } catch (error) {
+      trackTarotCompleted('three_cards', false);
       setError('Ошибка при обращении к серверу');
       setIsShuffling(false);
       setIsReading(false);
@@ -739,7 +697,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
                               {/* Кнопка подробного описания */}
                               <motion.button
                                 className="w-full bg-slate-700/20 rounded-md p-1.5 border border-slate-500/10 cursor-pointer hover:bg-slate-600/30 transition-colors text-gray-400 text-xs mb-3"
-                                onClick={() => openDescriptionModal(item.card)}
+                                onClick={() => item.card && openDescriptionModal(item.card)}
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                               >
@@ -824,7 +782,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
                       />
                       <Button
                         onClick={submitClarifyingQuestion}
-                        disabled={!currentClarifyingQuestion.trim()}
+                        disabled={!currentClarifyingQuestion.trim() || clarifyingQuestions.some(q => q.isLoading)}
                         className="w-full bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-400/30 rounded-lg py-2"
                       >
                         Отправить
