@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MainScreen } from '@/screens/HomeScreen';
 import { WelcomeScreen } from '@/screens/WelcomeScreen';
 import { OneCardScreen } from '@/screens/OneCardScreen';
@@ -8,13 +8,23 @@ import { ThreeCardsScreen } from '@/screens/ThreeCardsScreen';
 import { YesNoScreen } from '@/screens/YesNoScreen';
 import { HistoryScreen } from '@/screens/HistoryScreen';
 import { initPerformanceMonitoring } from '@/utils/performance';
-import { getSubscriptionSnapshot } from '@/state/subscriptionStore';
+import { getSubscriptionSnapshot, bootstrapSubscriptionStatus } from '@/state/subscriptionStore';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'home' | 'history'>('home');
   const [showWelcome, setShowWelcome] = useState(true);
   const [currentScreen, setCurrentScreen] = useState<'main' | 'oneCard' | 'threeCards' | 'yesNo'>('main');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const skipFirstMainRefetch = useRef(true);
+
+  useEffect(() => {
+    if (currentScreen !== 'main') return;
+    if (skipFirstMainRefetch.current) {
+      skipFirstMainRefetch.current = false;
+      return;
+    }
+    bootstrapSubscriptionStatus({ force: true }).catch(() => {});
+  }, [currentScreen]);
 
   useEffect(() => {
     // Инициализируем Telegram WebApp

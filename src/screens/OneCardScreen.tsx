@@ -6,6 +6,15 @@ import { ArrowLeft, Sparkles, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { apiService } from '@/services/api';
+import {
+  applySubscriptionInfo,
+  applyCooldownOverride,
+  getSubscriptionSnapshot,
+  bootstrapSubscriptionStatus,
+} from '@/state/subscriptionStore';
+import { getNextMoscowMidnightMs } from '@/utils/moscowTime';
+import { BlockedTarotModal } from '@/components/BlockedTarotModal';
+import { trackTarotStarted, trackTarotCompleted } from '@/utils/analytics';
 
 type DisplayCard = {
   name: string;
@@ -18,9 +27,6 @@ type DisplayCard = {
   suit?: string;
   number?: number;
 };
-import { applySubscriptionInfo, applyCooldownOverride } from '@/state/subscriptionStore';
-import { BlockedTarotModal } from '@/components/BlockedTarotModal';
-import { trackTarotStarted, trackTarotCompleted } from '@/utils/analytics';
 
 interface TarotLoaderProps {
   message?: string;
@@ -305,6 +311,13 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
         setSelectedCard({ ...apiCard, image: cardImage, imagePath: cardImage, name: apiCard.name });
         setAiAdvice(response.data.advice);
         trackTarotCompleted('one_card', true);
+        if (!raw?.subscriptionInfo) {
+          const snap = getSubscriptionSnapshot();
+          if (!snap.subscriptionInfo?.hasSubscription) {
+            applyCooldownOverride('daily', getNextMoscowMidnightMs());
+          }
+        }
+        void bootstrapSubscriptionStatus({ force: true });
       } else {
         setApiError('Не удалось получить расклад. Попробуйте позже.');
         setShowDeck(true);

@@ -4,7 +4,13 @@ import { ArrowLeft, Heart, Briefcase, Star, Sparkles, AlertCircle } from 'lucide
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { apiService } from '@/services/api';
-import { applySubscriptionInfo, applyCooldownOverride } from '@/state/subscriptionStore';
+import {
+  applySubscriptionInfo,
+  applyCooldownOverride,
+  getSubscriptionSnapshot,
+  bootstrapSubscriptionStatus,
+} from '@/state/subscriptionStore';
+import { getNextMoscowMidnightMs } from '@/utils/moscowTime';
 import { TarotCard } from '@/types/tarot';
 import { TarotLoader } from './OneCardScreen';
 import { formatInterpretationText } from '@/utils/textFormatting';
@@ -285,6 +291,14 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
         const t2 = setTimeout(() => setRevealedCards([0, 1]), 1000);
         const t3 = setTimeout(() => setRevealedCards([0, 1, 2]), 1500);
         timersRef.current.push(t1, t2, t3);
+
+        if (!(response as any)?.subscriptionInfo) {
+          const snap = getSubscriptionSnapshot();
+          if (!snap.subscriptionInfo?.hasSubscription) {
+            applyCooldownOverride('threeCards', getNextMoscowMidnightMs());
+          }
+        }
+        void bootstrapSubscriptionStatus({ force: true });
       } else {
         setError(response.error || 'Ошибка при получении расклада');
         setIsShuffling(false);

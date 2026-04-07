@@ -2,11 +2,8 @@
 
 /**
  * Global subscription/availability store (single source of truth).
- *
- * Requirements:
- * - one request to /api/tarot/subscription-status at app start (shared promise)
- * - pessimistic lock: until loaded=true, all tarot types are blocked
- * - no availability calculations in components
+ * - Never use a fake "all locked" snapshot on API failure (avoids false blocks on cold start).
+ * - Until loaded=true, UI must show loading — not lock icons.
  */
 import { apiService } from '@/services/api';
 import { useEffect, useState } from 'react';
@@ -23,43 +20,35 @@ export type CooldownEndsAt = {
 };
 
 export type SubscriptionState = {
-  // canonical flag required by spec
   isLoaded: boolean;
-  // backward-compat alias
   loaded: boolean;
   loading: boolean;
   error?: string;
-  subscriptionInfo: SubscriptionInfo;
-  // Absolute timestamps (ms since epoch) when cooldown ends.
-  // Derived from backend-provided msRemaining + the moment we received/cached the status.
+  /** null until first successful load from server or valid cache hydrate */
+  subscriptionInfo: SubscriptionInfo | null;
   cooldownEndsAt: CooldownEndsAt;
 };
 
 export type TarotAvailability = {
   allowed: boolean;
   nextAvailableAt?: Date;
-};
-
-const LOCKED_DEFAULT: SubscriptionInfo = {
-  hasSubscription: false,
-  canUseDailyAdvice: false,
-  canUseYesNo: false,
-  canUseThreeCards: false,
-  remainingDailyAdvice: 0,
-  remainingYesNo: 0,
-  remainingThreeCards: 0,
+  reason?: 'loading' | 'error';
 };
 
 let state: SubscriptionState = {
   isLoaded: false,
   loaded: false,
   loading: false,
-  subscriptionInfo: LOCKED_DEFAULT,
+  subscriptionInfo: null,
   cooldownEndsAt: {},
 };
 
 const listeners = new Set<() => void>();
 let inFlight: Promise<void> | null = null;
+
+const RETRY_DELAY_MS = 3000;
+const MAX_FETCH_ATTEMPTS = 2;
+const CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
 
 function emit() {
   for (const l of listeners) l();
@@ -67,9 +56,13 @@ function emit() {
 
 function setState(partial: Partial<SubscriptionState>) {
   const next = { ...state, ...partial } as SubscriptionState;
-  // keep flags in sync
-  next.isLoaded = !!(partial.isLoaded ?? partial.loaded ?? next.isLoaded);
-  next.loaded = next.isLoaded;
+  if ('isLoaded' in partial || 'loaded' in partial) {
+    next.isLoaded = !!(partial.isLoaded ?? partial.loaded);
+    next.loaded = next.isLoaded;
+  } else {
+    next.isLoaded = state.isLoaded;
+    next.loaded = state.loaded;
+  }
   state = next;
   emit();
 }
@@ -108,7 +101,6 @@ function safeSetCachedInfo(info: SubscriptionInfo, ts: number) {
 }
 
 function computeCooldownEndsAt(info: any, baseTs: number): CooldownEndsAt {
-  // Convert backend msRemaining -> absolute cooldown end timestamp.
   const dailyMs = typeof info?.cooldowns?.dailyAdviceMsRemaining === 'number' ? info.cooldowns.dailyAdviceMsRemaining : null;
   const yesNoMs = typeof info?.cooldowns?.yesNoMsRemaining === 'number' ? info.cooldowns.yesNoMsRemaining : null;
   const threeMs = typeof info?.cooldowns?.threeCardsMsRemaining === 'number' ? info.cooldowns.threeCardsMsRemaining : null;
@@ -133,10 +125,36 @@ export function applySubscriptionInfo(info: any, opts?: { ts?: number }): void {
   });
 }
 
-const CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
+function delay(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
-export function bootstrapSubscriptionStatus(): Promise<void> {
-  if (inFlight) return inFlight;
+async function fetchSubscriptionFromServer(): Promise<{ ok: boolean; info?: any; error?: string }> {
+  try {
+    const resp = await apiService.getTarotSubscriptionStatus();
+    const info = (resp as any).subscriptionInfo ?? (resp.data as any)?.subscriptionInfo;
+    if (resp.success && info) {
+      return { ok: true, info };
+    }
+    return { ok: false, error: resp.error || 'Failed to load subscription status' };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Failed to load subscription status';
+    return { ok: false, error: msg };
+  }
+}
+
+export type BootstrapSubscriptionOptions = { force?: boolean };
+
+export function bootstrapSubscriptionStatus(opts?: BootstrapSubscriptionOptions): Promise<void> {
+  const force = !!opts?.force;
+
+  if (inFlight && !force) return inFlight;
+
+  if (inFlight && force) {
+    const pending = inFlight;
+    inFlight = null;
+    void pending.catch(() => {});
+  }
 
   const cached = safeGetCachedInfo();
   if (cached) {
@@ -144,60 +162,73 @@ export function bootstrapSubscriptionStatus(): Promise<void> {
     setState({
       subscriptionInfo: cached.subscriptionInfo,
       cooldownEndsAt: computeCooldownEndsAt(cached.subscriptionInfo, cached.ts),
-      ...(isFresh ? { isLoaded: true } : {}),
+      ...(isFresh ? { isLoaded: true, error: undefined } : {}),
     });
     if (isFresh) {
       console.log('Subscription: unlocked from fresh cache');
     }
   }
 
-  setState({ loading: true });
-  inFlight = (async () => {
+  setState({ loading: true, error: undefined });
+
+  const run = async () => {
     const token = getAccessToken();
     if (!token) {
       console.log('Subscription: waiting for token');
-      setState({ loading: false });
-      return;
-    }
-
-    console.log('Subscription: requesting status');
-    const resp = await apiService.getTarotSubscriptionStatus();
-
-    const info = (resp as any).subscriptionInfo ?? (resp.data as any)?.subscriptionInfo;
-    if (resp.success && info) {
-      console.log('Subscription: loaded from server');
-      const ts = Date.now();
-      safeSetCachedInfo(info, ts);
       setState({
-        subscriptionInfo: info,
-        cooldownEndsAt: computeCooldownEndsAt(info, ts),
-        isLoaded: true,
         loading: false,
+        subscriptionInfo: null,
+        isLoaded: false,
         error: undefined,
+        cooldownEndsAt: {},
       });
       return;
     }
 
-    // If we already unlocked from cache, keep the cached data instead of locking
-    if (state.isLoaded) {
-      console.log('Subscription: server failed, keeping cached data');
-      setState({ loading: false });
-      return;
+    for (let attempt = 0; attempt < MAX_FETCH_ATTEMPTS; attempt++) {
+      if (attempt > 0) {
+        console.log('Subscription: retry after delay', attempt);
+        await delay(RETRY_DELAY_MS);
+      }
+
+      console.log('Subscription: requesting status', { attempt });
+      const result = await fetchSubscriptionFromServer();
+
+      if (result.ok && result.info) {
+        const ts = Date.now();
+        safeSetCachedInfo(result.info, ts);
+        setState({
+          subscriptionInfo: result.info,
+          cooldownEndsAt: computeCooldownEndsAt(result.info, ts),
+          isLoaded: true,
+          loading: false,
+          error: undefined,
+        });
+        return;
+      }
+
+      if (state.isLoaded) {
+        console.log('Subscription: server failed, keeping cached data');
+        setState({ loading: false, error: undefined });
+        return;
+      }
     }
 
-    console.log('Subscription: failed, fallback applied');
+    console.log('Subscription: failed after retries — staying unloaded (no false lock)');
     setState({
-      subscriptionInfo: LOCKED_DEFAULT,
-      isLoaded: true,
+      subscriptionInfo: null,
+      isLoaded: false,
       loading: false,
-      error: resp.error || 'Failed to load subscription status',
+      error: 'Не удалось загрузить статус. Проверьте сеть и попробуйте снова.',
       cooldownEndsAt: {},
     });
-  })().finally(() => {
-    inFlight = null;
-  });
+  };
 
-  return inFlight;
+  const p = run().finally(() => {
+    if (inFlight === p) inFlight = null;
+  });
+  inFlight = p;
+  return p;
 }
 
 function getCanUse(info: any, type: TarotType): boolean {
@@ -214,13 +245,10 @@ function getCanUse(info: any, type: TarotType): boolean {
 }
 
 function isFreeUser(info: any): boolean {
-  // "free user" == user without active subscription
   return !info?.hasSubscription;
 }
 
 function getFreeUsedFlag(info: any, type: TarotType): boolean {
-  // For free users, remainingX counters MUST NOT be used for blocking.
-  // Backend typically provides per-spread usage flags + cooldowns.
   switch (type) {
     case 'daily':
       return !!info?.freeDailyAdviceUsed;
@@ -249,10 +277,6 @@ function getCooldownMsRemaining(info: any, type: TarotType): number | null {
 }
 
 function computeFreeUserAvailability(info: any, type: TarotType, cooldownEndsAt: CooldownEndsAt): TarotAvailability {
-  // Business rules (FREE):
-  // - each spread is available once per 24h
-  // - availability is determined ONLY by time (lastUsedAt + 24h)
-  // We model this using backend-provided cooldowns (ms remaining) and per-spread used flags.
   const endsAt = cooldownEndsAt?.[type];
   if (typeof endsAt === 'number') {
     if (Date.now() >= endsAt) return { allowed: true };
@@ -262,9 +286,6 @@ function computeFreeUserAvailability(info: any, type: TarotType, cooldownEndsAt:
   const used = getFreeUsedFlag(info, type);
   if (!used) return { allowed: true };
 
-  // Fallbacks (should be rare):
-  // - if cooldown endsAt isn't available, prefer canUse* flags (time-derived)
-  // - NEVER use remaining* counters to block free users
   if (getCanUse(info, type)) return { allowed: true };
 
   const msRemaining = getCooldownMsRemaining(info, type);
@@ -282,12 +303,17 @@ export function applyCooldownOverride(type: TarotType, nextAvailableAtMs: number
 
 export function getTarotAvailability(type: TarotType): TarotAvailability {
   const snap = getSubscriptionSnapshot();
-  // Block only when we have NO data at all. If loaded (even from cache) and a
-  // background refresh is running (loading=true), keep using cached data.
-  if (!snap.loaded) return { allowed: false };
-  if (snap.error && !snap.loading) return { allowed: false };
+  if (!snap.loaded) {
+    return { allowed: false, reason: 'loading' };
+  }
+  if (snap.error && !snap.loading) {
+    return { allowed: false, reason: 'error' };
+  }
 
   const info = snap.subscriptionInfo;
+  if (!info) {
+    return { allowed: false, reason: 'loading' };
+  }
   if (!isFreeUser(info)) return { allowed: true };
 
   return computeFreeUserAvailability(info, type, snap.cooldownEndsAt);
@@ -303,3 +329,16 @@ export function useSubscriptionStatus(): SubscriptionState {
   return snap;
 }
 
+/** @internal Vitest only — resets module state */
+export function __resetSubscriptionStoreForTests(): void {
+  state = {
+    isLoaded: false,
+    loaded: false,
+    loading: false,
+    subscriptionInfo: null,
+    cooldownEndsAt: {},
+    error: undefined,
+  };
+  inFlight = null;
+  emit();
+}

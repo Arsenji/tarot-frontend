@@ -15,10 +15,12 @@ import {
   getSubscriptionSnapshot,
   applySubscriptionInfo,
   getTarotAvailability,
+  __resetSubscriptionStoreForTests,
   type TarotType,
 } from '@/state/subscriptionStore';
 
 function resetStoreState() {
+  __resetSubscriptionStoreForTests();
   applySubscriptionInfo({
     hasSubscription: false,
     canUseDailyAdvice: false,
@@ -77,6 +79,13 @@ describe('subscriptionStore', () => {
   });
 
   describe('getTarotAvailability', () => {
+    it('returns reason loading when store is not loaded', () => {
+      __resetSubscriptionStoreForTests();
+      const avail = getTarotAvailability('daily');
+      expect(avail.allowed).toBe(false);
+      expect(avail.reason).toBe('loading');
+    });
+
     it('blocks free user when used flag is set and no canUse', () => {
       applySubscriptionInfo({
         hasSubscription: false,

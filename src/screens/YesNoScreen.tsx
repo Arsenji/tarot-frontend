@@ -8,7 +8,13 @@ import { useState } from 'react';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { tarotCards } from '@/data/tarotCards';
 import { apiService } from '@/services/api';
-import { applySubscriptionInfo, applyCooldownOverride } from '@/state/subscriptionStore';
+import {
+  applySubscriptionInfo,
+  applyCooldownOverride,
+  getSubscriptionSnapshot,
+  bootstrapSubscriptionStatus,
+} from '@/state/subscriptionStore';
+import { getNextMoscowMidnightMs } from '@/utils/moscowTime';
 import { BlockedTarotModal } from '@/components/BlockedTarotModal';
 import { trackTarotStarted, trackTarotCompleted } from '@/utils/analytics';
 
@@ -177,6 +183,13 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
           interpretation: apiData.interpretation,
         });
         trackTarotCompleted('yes_no', true);
+        if (!raw?.subscriptionInfo) {
+          const snap = getSubscriptionSnapshot();
+          if (!snap.subscriptionInfo?.hasSubscription) {
+            applyCooldownOverride('yesNo', getNextMoscowMidnightMs());
+          }
+        }
+        void bootstrapSubscriptionStatus({ force: true });
       } else {
         trackTarotCompleted('yes_no', false);
         setApiError('Не удалось получить расклад. Попробуйте позже.');
