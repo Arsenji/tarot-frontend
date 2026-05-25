@@ -114,14 +114,16 @@ describe('ApiService', () => {
     });
   });
 
-  describe('getTarotSubscriptionStatus', () => {
-    it('sends GET request', async () => {
+  describe('getWalletStatus / getTarotSubscriptionStatus', () => {
+    it('sends GET request to wallet-status', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           success: true,
-          subscriptionInfo: {
-            hasSubscription: false,
+          walletInfo: {
+            tokensBalance: 10,
+            freeYesNoRemaining: 3,
+            freeThreeCardsRemaining: 3,
             canUseDailyAdvice: true,
           },
         }),
@@ -130,7 +132,7 @@ describe('ApiService', () => {
       const result = await apiService.getTarotSubscriptionStatus();
 
       const [url, options] = mockFetch.mock.calls[0];
-      expect(url).toContain('/api/tarot/subscription-status');
+      expect(url).toContain('/api/tarot/wallet-status');
       expect(options.method).toBe('GET');
       expect(result.success).toBe(true);
     });

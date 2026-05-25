@@ -1,4 +1,5 @@
 import posthog from 'posthog-js';
+import type { TokenPackageId } from '@/constants/tokenPackages';
 
 const POSTHOG_KEY = 'phc_pA7Aai2zies44X8G3ebVUTQii7DmCRxt26Cww33HPsN3';
 const POSTHOG_HOST = 'https://eu.i.posthog.com';
@@ -28,8 +29,6 @@ export function trackEvent(event: string, properties?: Record<string, unknown>):
   posthog.capture(event, properties);
 }
 
-// ─── Typed event helpers ────────────────────────────────────
-
 export function trackAppOpened(): void {
   trackEvent('app_opened');
 }
@@ -42,6 +41,19 @@ export function trackTarotCompleted(type: 'one_card' | 'yes_no' | 'three_cards',
   trackEvent('tarot_completed', { type, success });
 }
 
+export function trackTokensShopOpened(): void {
+  trackEvent('tokens_shop_opened');
+}
+
+export function trackTokenPackageSelected(packageId: TokenPackageId): void {
+  trackEvent('token_package_selected', { package: packageId });
+}
+
+export function trackTokensSpent(amount: number, spreadType: 'yes_no' | 'three_cards'): void {
+  trackEvent('tokens_spent', { amount, spread_type: spreadType });
+}
+
+/** @deprecated use trackTokensShopOpened */
 export function trackSubscriptionClicked(): void {
-  trackEvent('subscription_clicked');
+  trackTokensShopOpened();
 }

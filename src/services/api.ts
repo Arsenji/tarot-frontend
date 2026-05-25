@@ -1,39 +1,35 @@
-import { cache, historyCache, dailyAdviceCache, getCurrentDate } from '@/utils/cache';
+import { historyCache } from '@/utils/cache';
 import { getAccessToken } from '@/utils/auth';
+import type { WalletInfo } from '@/state/tokenStore';
+import type { TokenPackageId } from '@/constants/tokenPackages';
 
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
   error?: string;
-  subscriptionRequired?: boolean;
+  code?: string;
+  insufficientTokens?: boolean;
+  required?: number;
+  balance?: number;
+  walletInfo?: WalletInfo;
+  tokensBalance?: number;
   reason?: string;
   cooldown?: {
     msRemaining?: number;
     hoursRemaining?: number;
     nextAvailableAt?: string;
   };
-  subscriptionInfo?: {
-    hasSubscription: boolean;
-    isExpired: boolean;
-    canUseYesNo: boolean;
-    canUseThreeCards: boolean;
-    canUseDailyAdvice: boolean;
-    historyLimit: number;
-    freeDailyAdviceUsed: boolean;
-    freeYesNoUsed: boolean;
-    freeThreeCardsUsed: boolean;
-    remainingDailyAdvice: number;
-    remainingYesNo: number;
-    remainingThreeCards: number;
-    cooldowns?: {
-      dailyAdviceMsRemaining: number;
-      yesNoMsRemaining: number;
-      threeCardsMsRemaining: number;
-      dailyAdviceHoursRemaining: number;
-      yesNoHoursRemaining: number;
-      threeCardsHoursRemaining: number;
-    };
+  payment?: {
+    id: string;
+    paymentId: string;
+    confirmationUrl: string;
+    amount: string;
+    currency: string;
+    tokenPackage: TokenPackageId;
   };
+  tokensSpent?: number;
+  usedFree?: boolean;
+  fallback?: boolean;
 }
 
 export interface TarotCard {
@@ -90,82 +86,90 @@ class ApiService {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://tarot-tg-backend.onrender.com' 
+    this.baseUrl = process.env.NODE_ENV === 'production'
+      ? 'https://tarot-tg-backend.onrender.com'
       : 'http://localhost:3001';
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
-    const startTime = performance.now();
-    
     try {
       const token = getAccessToken();
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         headers: {
           'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` }),
+          ...(token && { Authorization: `Bearer ${token}` }),
           ...options.headers,
         },
         ...options,
       });
 
-      const duration = performance.now() - startTime;
-      const success = response.ok;
+      const serverResponse = await response.json().catch(() => ({} as Record<string, unknown>));
 
-      const serverResponse = await response.json().catch(() => ({} as any));
+      const walletInfo = serverResponse.walletInfo as WalletInfo | undefined;
+      const tokensBalance = serverResponse.tokensBalance as number | undefined;
+      const tokensSpent = serverResponse.tokensSpent as number | undefined;
+      const usedFree = serverResponse.usedFree as boolean | undefined;
+      const fallback = serverResponse.fallback as boolean | undefined;
+      const cooldown = serverResponse.cooldown as ApiResponse<T>['cooldown'];
+
+      const extras = { walletInfo, tokensBalance, tokensSpent, usedFree, fallback, cooldown };
 
       if (!response.ok) {
-        // unify subscriptionRequired handling
+        if (response.status === 402) {
+          return {
+            success: false,
+            data: null as T,
+            error: (serverResponse.error as string) || 'Insufficient tokens',
+            code: (serverResponse.code as string) || 'INSUFFICIENT_TOKENS',
+            insufficientTokens: true,
+            required: serverResponse.required as number | undefined,
+            balance: serverResponse.balance as number | undefined,
+            ...extras,
+          };
+        }
+
         if (response.status === 403) {
           return {
             success: false,
             data: null as T,
-            error: (serverResponse as any).error || `HTTP error! status: ${response.status}`,
-            subscriptionRequired: (serverResponse as any).subscriptionRequired !== false,
-            reason: (serverResponse as any).reason,
-            cooldown: (serverResponse as any).cooldown,
-            subscriptionInfo: (serverResponse as any).subscriptionInfo,
+            error: (serverResponse.error as string) || `HTTP error! status: ${response.status}`,
+            reason: serverResponse.reason as string | undefined,
+            cooldown: serverResponse.cooldown as ApiResponse<T>['cooldown'],
+            ...extras,
           };
         }
-        throw new Error((serverResponse as any).error || `HTTP error! status: ${response.status}`);
+
+        throw new Error((serverResponse.error as string) || `HTTP error! status: ${response.status}`);
       }
-      
-      // Если сервер возвращает структуру { success: true, data: ... }, извлекаем data
+
       if (serverResponse.success && serverResponse.data) {
-        return { 
-          success: true, 
-          data: serverResponse.data,
-          subscriptionRequired: serverResponse.subscriptionRequired,
-          subscriptionInfo: serverResponse.subscriptionInfo
+        return {
+          success: true,
+          data: serverResponse.data as T,
+          ...extras,
         };
       }
-      
-      // Иначе возвращаем весь ответ
-      return { 
-        success: true, 
-        data: serverResponse,
-        subscriptionRequired: serverResponse.subscriptionRequired,
-        subscriptionInfo: serverResponse.subscriptionInfo
+
+      return {
+        success: true,
+        data: serverResponse as T,
+        ...extras,
       };
     } catch (error) {
       console.error('API request failed:', error);
-
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return { 
-        success: false, 
-        data: null as T, 
+      return {
+        success: false,
+        data: null as T,
         error: errorMessage,
       };
     }
   }
 
   async getDailyAdvice(): Promise<ApiResponse<DailyAdviceResponse>> {
-    // Отключаем кэширование для получения разных карт каждый раз
-    const response = await this.request<DailyAdviceResponse>('/api/tarot/daily-advice', {
+    return this.request<DailyAdviceResponse>('/api/tarot/daily-advice', {
       method: 'POST',
     });
-
-    return response;
   }
 
   async getThreeCardsReading(category: string, userQuestion?: string): Promise<ApiResponse<{
@@ -232,67 +236,61 @@ class ApiService {
     });
   }
 
-  async getHistory(): Promise<ApiResponse<{ readings: any[] }>> {
-    // Делаем запрос напрямую (не используем кэш для проверки подписки)
-    const response = await this.request<{ readings: any[] }>('/api/tarot/history', {
+  async getHistory(): Promise<ApiResponse<{ readings: unknown[] }>> {
+    const response = await this.request<{ readings: unknown[] }>('/api/tarot/history', {
       method: 'GET',
     });
 
-    // Сохраняем в кэш только при успешном ответе и наличии подписки
-    if (response.success && response.data && !response.subscriptionRequired) {
-      historyCache.set(response.data.readings);
-    } else if (response.subscriptionRequired) {
-      // Очищаем кэш при отсутствии подписки
-      historyCache.clear();
+    const raw = response.data as { readings?: unknown[] } | null;
+    const topLevel = response as unknown as { readings?: unknown[] };
+    const readings = raw?.readings ?? topLevel.readings ?? [];
+
+    const normalized: ApiResponse<{ readings: unknown[] }> = {
+      ...response,
+      data: { readings },
+    };
+
+    if (normalized.success) {
+      historyCache.set(readings);
     }
 
-    return response;
+    return normalized;
   }
 
-  // Fast tarot availability (used for UI locking)
-  async getTarotSubscriptionStatus(): Promise<ApiResponse<{ subscriptionInfo: any }>> {
-    return this.request<{ subscriptionInfo: any }>('/api/tarot/subscription-status', {
+  async getWalletStatus(): Promise<ApiResponse<WalletInfo>> {
+    return this.request<WalletInfo>('/api/tarot/wallet-status', {
       method: 'GET',
     });
   }
 
-  // Новые методы для управления подписками
-  async registerUser(userData: {
-    telegramId: number;
-    firstName: string;
-    lastName?: string;
-    username?: string;
-    languageCode?: string;
-  }): Promise<ApiResponse<{ user: any; subscriptionInfo: any }>> {
-    return this.request<{ user: any; subscriptionInfo: any }>('/api/subscription/register', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(userData),
-    });
+  /** @deprecated alias for getWalletStatus */
+  async getTarotSubscriptionStatus(): Promise<ApiResponse<{ walletInfo: WalletInfo }>> {
+    const resp = await this.getWalletStatus();
+    return {
+      ...resp,
+      data: resp.walletInfo ? { walletInfo: resp.walletInfo } : (resp.data as { walletInfo: WalletInfo }),
+    };
   }
 
-  async getSubscriptionStatus(userId: string): Promise<ApiResponse<{ subscriptionInfo: any }>> {
-    return this.request<{ subscriptionInfo: any }>(`/api/subscription/${userId}/status`, {
+  async createTokenPayment(tokenPackage: TokenPackageId): Promise<ApiResponse<{ payment: NonNullable<ApiResponse<unknown>['payment']> }>> {
+    const resp = await this.request<{ payment: NonNullable<ApiResponse<unknown>['payment']> }>(
+      '/api/subscription/create-payment',
+      {
+        method: 'POST',
+        body: JSON.stringify({ tokenPackage }),
+      }
+    );
+
+    const payment =
+      resp.data?.payment ??
+      (resp as unknown as { payment?: NonNullable<ApiResponse<unknown>['payment']> }).payment;
+
+    return { ...resp, payment };
+  }
+
+  async getTokenPackages(): Promise<ApiResponse<{ packages: unknown[] }>> {
+    return this.request<{ packages: unknown[] }>('/api/subscription/packages', {
       method: 'GET',
-    });
-  }
-
-  async useSpread(userId: string, spreadType: 'daily' | 'yesno' | 'three_cards'): Promise<ApiResponse<{ subscriptionInfo: any }>> {
-    return this.request<{ subscriptionInfo: any }>(`/api/subscription/${userId}/use-spread`, {
-      method: 'POST',
-      body: JSON.stringify({ spreadType }),
-    });
-  }
-
-  async activateSubscription(userId: string, subscriptionExpiry: string): Promise<ApiResponse<{ subscriptionInfo: any }>> {
-    return this.request<{ subscriptionInfo: any }>(`/api/subscription/${userId}/subscribe`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ subscriptionExpiry }),
     });
   }
 }

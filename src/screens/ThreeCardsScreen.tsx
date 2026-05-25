@@ -5,17 +5,16 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { apiService } from '@/services/api';
 import {
-  applySubscriptionInfo,
-  applyCooldownOverride,
-  getSubscriptionSnapshot,
-  bootstrapSubscriptionStatus,
-} from '@/state/subscriptionStore';
-import { getNextMoscowMidnightMs } from '@/utils/moscowTime';
+  applyWalletInfo,
+  bootstrapWalletStatus,
+} from '@/state/tokenStore';
 import { TarotCard } from '@/types/tarot';
 import { TarotLoader } from './OneCardScreen';
 import { formatInterpretationText } from '@/utils/textFormatting';
 import { BlockedTarotModal } from '@/components/BlockedTarotModal';
-import { trackTarotStarted, trackTarotCompleted } from '@/utils/analytics';
+import { InsufficientTokensModal } from '@/components/InsufficientTokensModal';
+import { TokenShopModal } from '@/components/TokenShopModal';
+import { trackTarotStarted, trackTarotCompleted, trackTokensSpent } from '@/utils/analytics';
 
 // Категории гадания
 const categories = [
@@ -82,6 +81,8 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
   const [showValidationError, setShowValidationError] = useState(false);
   const [blockedOpen, setBlockedOpen] = useState(false);
   const [blockedNextAt, setBlockedNextAt] = useState<Date | undefined>(undefined);
+  const [insufficientOpen, setInsufficientOpen] = useState(false);
+  const [tokenShopOpen, setTokenShopOpen] = useState(false);
 
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => {
@@ -234,25 +235,18 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
     
     try {
       const response = await apiService.getThreeCardsReading(selectedCategory, userQuestion);
-      // Always apply subscription/cooldown snapshot from backend response (even on errors)
-      if ((response as any)?.subscriptionInfo) {
-        applySubscriptionInfo((response as any).subscriptionInfo);
+      if (response.walletInfo) {
+        applyWalletInfo(response.walletInfo);
       }
 
       if (!response.success) {
         trackTarotCompleted('three_cards', false);
-        const raw = response as any;
-        if (raw?.fallback) {
+        if (response.insufficientTokens) {
+          setInsufficientOpen(true);
+        } else if (response.fallback) {
           setError('AI временно недоступен. Попробуйте позже.');
         } else {
-          const cooldown = raw?.cooldown;
-          const nextIso = cooldown?.nextAvailableAt;
-          const nextAtMs = typeof nextIso === 'string' ? Date.parse(nextIso) : NaN;
-          const fallbackNextAtMs = Date.now() + 24 * 60 * 60 * 1000;
-          const finalNextAtMs = Number.isFinite(nextAtMs) ? nextAtMs : fallbackNextAtMs;
-          applyCooldownOverride('threeCards', finalNextAtMs);
-          setBlockedNextAt(new Date(finalNextAtMs));
-          setBlockedOpen(true);
+          setError(response.error || 'Ошибка при получении расклада');
         }
         setIsShuffling(false);
         setIsReading(false);
@@ -278,27 +272,22 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
         setApiInterpretation(response.data.interpretation);
         setCurrentReadingId(response.data.readingId);
         trackTarotCompleted('three_cards', true);
-        
-        // Останавливаем анимацию тасования и показываем карты
+        if (response.tokensSpent && response.tokensSpent > 0) {
+          trackTokensSpent(response.tokensSpent, 'three_cards');
+        }
+        void bootstrapWalletStatus({ force: true });
+
         setIsShuffling(false);
         setIsReading(false);
         setIsLoading(false);
         setShowCards(true);
-        
+
         timersRef.current.forEach(clearTimeout);
         timersRef.current = [];
         const t1 = setTimeout(() => setRevealedCards([0]), 500);
         const t2 = setTimeout(() => setRevealedCards([0, 1]), 1000);
         const t3 = setTimeout(() => setRevealedCards([0, 1, 2]), 1500);
         timersRef.current.push(t1, t2, t3);
-
-        if (!(response as any)?.subscriptionInfo) {
-          const snap = getSubscriptionSnapshot();
-          if (!snap.subscriptionInfo?.hasSubscription) {
-            applyCooldownOverride('threeCards', getNextMoscowMidnightMs());
-          }
-        }
-        void bootstrapSubscriptionStatus({ force: true });
       } else {
         setError(response.error || 'Ошибка при получении расклада');
         setIsShuffling(false);
@@ -328,6 +317,14 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
         tarotType="threeCards"
         nextAvailableAt={blockedNextAt}
       />
+      <InsufficientTokensModal
+        isOpen={insufficientOpen}
+        onClose={() => setInsufficientOpen(false)}
+        onBuyTokens={() => setTokenShopOpen(true)}
+        required={10}
+        tarotLabel="3 карты"
+      />
+      <TokenShopModal isOpen={tokenShopOpen} onClose={() => setTokenShopOpen(false)} />
       {/* Background with stars */}
       <div 
         className="absolute inset-0 opacity-20"

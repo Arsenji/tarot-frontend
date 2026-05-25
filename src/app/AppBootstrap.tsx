@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { bootstrapAuth } from '@/state/authStore';
-import { bootstrapSubscriptionStatus } from '@/state/subscriptionStore';
+import { bootstrapWalletStatus } from '@/state/tokenStore';
 import { useAuthStatus } from '@/state/authStore';
 import { initAnalytics, identifyUser, trackAppOpened } from '@/utils/analytics';
 
@@ -23,12 +23,12 @@ export function AppBootstrap({ children }: Props) {
     trackAppOpened();
 
     bootstrapAuth().catch(() => {});
-    bootstrapSubscriptionStatus().catch(() => {});
+    bootstrapWalletStatus().catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!auth.isReady || !auth.token) return;
-    bootstrapSubscriptionStatus().catch(() => {});
+    bootstrapWalletStatus().catch(() => {});
 
     // Identify user for PostHog after auth resolves
     try {

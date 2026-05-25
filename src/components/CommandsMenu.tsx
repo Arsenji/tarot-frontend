@@ -11,22 +11,28 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useState } from 'react';
-import { trackSubscriptionClicked } from '@/utils/analytics';
+import { trackTokensShopOpened } from '@/utils/analytics';
 
 interface CommandsMenuProps {
   onOpenApp?: () => void;
-  onBuySubscription?: () => void;
-  onMySubscription?: () => void;
+  onBuyTokens?: () => void;
+  onMyBalance?: () => void;
   onHelp?: () => void;
   onFeedback?: () => void;
+  /** @deprecated */
+  onBuySubscription?: () => void;
+  /** @deprecated */
+  onMySubscription?: () => void;
 }
 
 export function CommandsMenu({
   onOpenApp,
+  onBuyTokens,
+  onMyBalance,
+  onHelp,
+  onFeedback,
   onBuySubscription,
   onMySubscription,
-  onHelp,
-  onFeedback
 }: CommandsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -103,25 +109,25 @@ export function CommandsMenu({
                     <span>Открыть приложение</span>
                   </motion.button>
 
-                  {/* Две кнопки в ряд: "Купить подписку" и "Моя подписка" */}
+                  {/* Две кнопки в ряд: токены и баланс */}
                   <div className="grid grid-cols-2 gap-3">
                     <motion.button
                       className="bg-slate-700/50 hover:bg-slate-700 text-white font-medium py-3 px-4 rounded-xl border border-purple-400/30 transition-all flex items-center justify-center space-x-2"
-                      onClick={() => { trackSubscriptionClicked(); handleAction(onBuySubscription); }}
+                      onClick={() => { trackTokensShopOpened(); handleAction(onBuyTokens ?? onBuySubscription); }}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <CreditCard className="w-4 h-4 flex-shrink-0" />
-                      <span className="text-sm">Купить подписку</span>
+                      <span className="text-sm">Купить токены</span>
                     </motion.button>
                     <motion.button
                       className="bg-slate-700/50 hover:bg-slate-700 text-white font-medium py-3 px-4 rounded-xl border border-purple-400/30 transition-all flex items-center justify-center space-x-2"
-                      onClick={() => handleAction(onMySubscription)}
+                      onClick={() => handleAction(onMyBalance ?? onMySubscription)}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <Crown className="w-4 h-4 flex-shrink-0" />
-                      <span className="text-sm">Моя подписка</span>
+                      <span className="text-sm">Мой баланс</span>
                     </motion.button>
                   </div>
 
