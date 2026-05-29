@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle2, XCircle, Loader2, Ban } from 'lucide-react';
@@ -8,14 +8,33 @@ import { Button } from '@/components/ui/button';
 import { getApiEndpoint } from '@/utils/config';
 import { getValidAuthToken } from '@/utils/auth';
 
+// Максимум опросов статуса (~60 сек при интервале 2 сек),
+// чтобы страница не зависала бесконечно, если платёж не оплачен.
+const MAX_ATTEMPTS = 30;
+const POLL_INTERVAL_MS = 2000;
+
 function PaymentResultContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [status, setStatus] = useState<'checking' | 'success' | 'error' | 'canceled'>('checking');
+  const [status, setStatus] = useState<'checking' | 'success' | 'error' | 'canceled' | 'timeout'>('checking');
   const [message, setMessage] = useState('Проверяем статус платежа...');
+  const attemptsRef = useRef(0);
+  const cancelledRef = useRef(false);
+
+  const goBack = () => {
+    const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null;
+    if (tg?.close) {
+      tg.close();
+    } else {
+      router.push('/');
+    }
+  };
 
   useEffect(() => {
+    cancelledRef.current = false;
+
     const checkPaymentStatus = async () => {
+      if (cancelledRef.current) return;
       try {
         const paymentId = searchParams?.get('paymentId') ||
                          searchParams?.get('payment_id') ||
@@ -31,7 +50,7 @@ function PaymentResultContent() {
         const token = await getValidAuthToken();
         if (!token) {
           setStatus('error');
-          setMessage('Ошибка авторизации. Попробуйте вернуться в приложение.');
+          setMessage('Ошибка авторизации. Вернитесь в приложение и проверьте баланс.');
           return;
         }
 
@@ -58,20 +77,20 @@ function PaymentResultContent() {
         if (data.success && data.payment?.paid) {
           setStatus('success');
           setMessage('Токены начислены');
-          setTimeout(() => {
-            if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
-              (window as any).Telegram.WebApp.close();
-            } else {
-              router.push('/');
-            }
-          }, 3000);
-        } else if (data.payment?.status === 'pending') {
-          setStatus('checking');
-          setMessage('Ожидаем подтверждение');
-          setTimeout(checkPaymentStatus, 2000);
+          setTimeout(goBack, 2500);
         } else if (data.payment?.status === 'canceled') {
           setStatus('canceled');
-          setMessage('Платеж отменён');
+          setMessage('Платёж отменён. Токены не списаны.');
+        } else if (data.payment?.status === 'pending') {
+          attemptsRef.current += 1;
+          if (attemptsRef.current >= MAX_ATTEMPTS) {
+            setStatus('timeout');
+            setMessage('Платёж пока не подтверждён. Если вы оплатили — баланс обновится автоматически в течение пары минут.');
+            return;
+          }
+          setStatus('checking');
+          setMessage('Ожидаем подтверждение');
+          setTimeout(checkPaymentStatus, POLL_INTERVAL_MS);
         } else {
           setStatus('error');
           setMessage('Платёж не завершён. Если деньги списались, обратитесь в поддержку.');
@@ -84,6 +103,10 @@ function PaymentResultContent() {
     };
 
     checkPaymentStatus();
+
+    return () => {
+      cancelledRef.current = true;
+    };
   }, [searchParams, router]);
 
   return (
@@ -124,7 +147,7 @@ function PaymentResultContent() {
             </motion.div>
           )}
 
-          {status === 'canceled' && (
+          {(status === 'canceled' || status === 'timeout') && (
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -139,26 +162,19 @@ function PaymentResultContent() {
             {status === 'success' && 'Успешно!'}
             {status === 'error' && 'Что-то пошло не так'}
             {status === 'canceled' && 'Платеж отменён'}
+            {status === 'timeout' && 'Платёж не подтверждён'}
           </h1>
 
           <p className="text-gray-300 text-center">
             {message}
           </p>
 
-          {status !== 'checking' && (
-            <Button
-              onClick={() => {
-                if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
-                  (window as any).Telegram.WebApp.close();
-                } else {
-                  router.push('/');
-                }
-              }}
-              className="w-full px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white rounded-xl font-medium transition-all duration-300"
-            >
-              Вернуться в приложение
-            </Button>
-          )}
+          <Button
+            onClick={goBack}
+            className="w-full px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white rounded-xl font-medium transition-all duration-300"
+          >
+            Вернуться в приложение
+          </Button>
         </div>
       </motion.div>
     </div>

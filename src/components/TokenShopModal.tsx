@@ -51,7 +51,19 @@ export function TokenShopModal({
         setLoadingId(null);
         return;
       }
-      window.location.href = resp.payment.confirmationUrl;
+
+      const url = resp.payment.confirmationUrl;
+      const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null;
+
+      // Открываем оплату во внешнем браузере Telegram — Mini App остаётся жив.
+      // При возврате (или отмене) баланс обновится по visibilitychange в AppBootstrap.
+      if (tg?.openLink) {
+        tg.openLink(url);
+        setLoadingId(null);
+        onClose();
+      } else {
+        window.location.href = url;
+      }
     } catch {
       setError('Ошибка при создании платежа');
       setLoadingId(null);

@@ -27,6 +27,16 @@ export function AppBootstrap({ children }: Props) {
   }, []);
 
   useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        bootstrapWalletStatus({ force: true }).catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+
+  useEffect(() => {
     if (!auth.isReady || !auth.token) return;
     bootstrapWalletStatus().catch(() => {});
 
