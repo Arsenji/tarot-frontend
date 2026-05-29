@@ -57,7 +57,7 @@ function PaymentResultContent() {
 
         if (data.success && data.payment?.paid) {
           setStatus('success');
-          setMessage('Подписка активирована');
+          setMessage('Токены начислены');
           setTimeout(() => {
             if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
               (window as any).Telegram.WebApp.close();
