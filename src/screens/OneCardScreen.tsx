@@ -7,14 +7,14 @@ import { useState, useEffect, useRef } from 'react';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { apiService } from '@/services/api';
 import {
-  applySubscriptionInfo,
+  applyWalletInfo,
   applyCooldownOverride,
-  getSubscriptionSnapshot,
-  bootstrapSubscriptionStatus,
-} from '@/state/subscriptionStore';
-import { getNextMoscowMidnightMs } from '@/utils/moscowTime';
+  bootstrapWalletStatus,
+} from '@/state/tokenStore';
 import { BlockedTarotModal } from '@/components/BlockedTarotModal';
-import { trackTarotStarted, trackTarotCompleted } from '@/utils/analytics';
+import { InsufficientTokensModal } from '@/components/InsufficientTokensModal';
+import { TokenShopModal } from '@/components/TokenShopModal';
+import { trackTarotStarted, trackTarotCompleted, trackTokensSpent } from '@/utils/analytics';
 
 type DisplayCard = {
   name: string;
@@ -276,20 +276,19 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
     
     try {
       const response = await apiService.getDailyAdvice();
-      const raw = response as any;
-      if (raw?.subscriptionInfo) {
-        applySubscriptionInfo(raw.subscriptionInfo);
+      if (response.walletInfo) {
+        applyWalletInfo(response.walletInfo);
       }
 
       if (!response.success) {
         trackTarotCompleted('one_card', false);
-        const cooldown = raw?.cooldown;
+        const cooldown = response.cooldown;
         const nextIso = cooldown?.nextAvailableAt;
         const nextAtMs = typeof nextIso === 'string' ? Date.parse(nextIso) : NaN;
         const fallbackNextAtMs = Date.now() + 24 * 60 * 60 * 1000;
         const finalNextAtMs = Number.isFinite(nextAtMs) ? nextAtMs : fallbackNextAtMs;
 
-        if (raw?.fallback) {
+        if (response.fallback) {
           setApiError('AI временно недоступен. Попробуйте позже.');
         } else {
           applyCooldownOverride('daily', finalNextAtMs);
@@ -311,13 +310,10 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
         setSelectedCard({ ...apiCard, image: cardImage, imagePath: cardImage, name: apiCard.name });
         setAiAdvice(response.data.advice);
         trackTarotCompleted('one_card', true);
-        if (!raw?.subscriptionInfo) {
-          const snap = getSubscriptionSnapshot();
-          if (!snap.subscriptionInfo?.hasSubscription) {
-            applyCooldownOverride('daily', getNextMoscowMidnightMs());
-          }
+        if (response.cooldown?.nextAvailableAt) {
+          applyCooldownOverride('daily', Date.parse(response.cooldown.nextAvailableAt));
         }
-        void bootstrapSubscriptionStatus({ force: true });
+        void bootstrapWalletStatus({ force: true });
       } else {
         setApiError('Не удалось получить расклад. Попробуйте позже.');
         setShowDeck(true);

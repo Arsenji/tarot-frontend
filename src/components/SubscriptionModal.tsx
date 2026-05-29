@@ -70,7 +70,7 @@ export function SubscriptionModal({
               {showHistoryMessage && (
                 <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-500/30">
                   <p className="text-gray-300 text-sm">
-                    История доступна только по подписке. Оформите её прямо сейчас!
+                    История раскладов доступна всем пользователям во вкладке «История раскладов».
                   </p>
                 </div>
               )}

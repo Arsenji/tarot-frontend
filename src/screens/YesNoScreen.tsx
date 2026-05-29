@@ -9,14 +9,13 @@ import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { tarotCards } from '@/data/tarotCards';
 import { apiService } from '@/services/api';
 import {
-  applySubscriptionInfo,
-  applyCooldownOverride,
-  getSubscriptionSnapshot,
-  bootstrapSubscriptionStatus,
-} from '@/state/subscriptionStore';
-import { getNextMoscowMidnightMs } from '@/utils/moscowTime';
+  applyWalletInfo,
+  bootstrapWalletStatus,
+} from '@/state/tokenStore';
 import { BlockedTarotModal } from '@/components/BlockedTarotModal';
-import { trackTarotStarted, trackTarotCompleted } from '@/utils/analytics';
+import { InsufficientTokensModal } from '@/components/InsufficientTokensModal';
+import { TokenShopModal } from '@/components/TokenShopModal';
+import { trackTarotStarted, trackTarotCompleted, trackTokensSpent } from '@/utils/analytics';
 
 // Импорт TarotLoader из OneCardScreen
 import { TarotLoader } from './OneCardScreen';
@@ -66,6 +65,8 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
   const [isInterpretationExpanded, setIsInterpretationExpanded] = useState<{[key: string]: boolean}>({});
   const [blockedOpen, setBlockedOpen] = useState(false);
   const [blockedNextAt, setBlockedNextAt] = useState<Date | undefined>(undefined);
+  const [insufficientOpen, setInsufficientOpen] = useState(false);
+  const [tokenShopOpen, setTokenShopOpen] = useState(false);
 
   // Валидация вопроса
   const validateQuestion = (text: string): boolean => {
@@ -115,24 +116,18 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
 
     try {
       const response = await apiService.getYesNoAnswer(question);
-      const raw = response as any;
-      if (raw?.subscriptionInfo) {
-        applySubscriptionInfo(raw.subscriptionInfo);
+      if (response.walletInfo) {
+        applyWalletInfo(response.walletInfo);
       }
 
       if (!response.success) {
         trackTarotCompleted('yes_no', false);
-        if (raw?.fallback) {
+        if (response.insufficientTokens) {
+          setInsufficientOpen(true);
+        } else if ((response as { fallback?: boolean }).fallback) {
           setApiError('AI временно недоступен. Попробуйте позже.');
         } else {
-          const cooldown = raw?.cooldown;
-          const nextIso = cooldown?.nextAvailableAt;
-          const nextAtMs = typeof nextIso === 'string' ? Date.parse(nextIso) : NaN;
-          const fallbackNextAtMs = Date.now() + 24 * 60 * 60 * 1000;
-          const finalNextAtMs = Number.isFinite(nextAtMs) ? nextAtMs : fallbackNextAtMs;
-          applyCooldownOverride('yesNo', finalNextAtMs);
-          setBlockedNextAt(new Date(finalNextAtMs));
-          setBlockedOpen(true);
+          setApiError(response.error || 'Не удалось получить расклад.');
         }
         return;
       }
@@ -183,13 +178,10 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
           interpretation: apiData.interpretation,
         });
         trackTarotCompleted('yes_no', true);
-        if (!raw?.subscriptionInfo) {
-          const snap = getSubscriptionSnapshot();
-          if (!snap.subscriptionInfo?.hasSubscription) {
-            applyCooldownOverride('yesNo', getNextMoscowMidnightMs());
-          }
+        if (response.tokensSpent && response.tokensSpent > 0) {
+          trackTokensSpent(response.tokensSpent, 'yes_no');
         }
-        void bootstrapSubscriptionStatus({ force: true });
+        void bootstrapWalletStatus({ force: true });
       } else {
         trackTarotCompleted('yes_no', false);
         setApiError('Не удалось получить расклад. Попробуйте позже.');
@@ -336,6 +328,14 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
         tarotType="yesNo"
         nextAvailableAt={blockedNextAt}
       />
+      <InsufficientTokensModal
+        isOpen={insufficientOpen}
+        onClose={() => setInsufficientOpen(false)}
+        onBuyTokens={() => setTokenShopOpen(true)}
+        required={5}
+        tarotLabel="Да/Нет"
+      />
+      <TokenShopModal isOpen={tokenShopOpen} onClose={() => setTokenShopOpen(false)} />
       {/* Background with stars */}
       <div 
         className="absolute inset-0 opacity-20"

@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { apiService } from '@/services/api';
 import { formatInterpretationText, truncateText } from '@/utils/textFormatting';
-import { SubscriptionModal } from '@/components/SubscriptionModal';
 import { tarotCards } from '@/data/tarotCards';
 import { getCategoryName, shouldShowCategory } from '@/utils/historyHelpers';
 
@@ -80,7 +79,6 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
   } | null>(null);
   const [isInterpretationExpanded, setIsInterpretationExpanded] = useState(false);
   const [expandedClarifyingQuestions, setExpandedClarifyingQuestions] = useState<{ [key: number]: boolean }>({});
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   // Загружаем историю при монтировании компонента и при переключении на вкладку истории
   useEffect(() => {
@@ -91,9 +89,6 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
       }, 100);
       
       return () => clearTimeout(timer);
-    } else {
-      // При переключении с истории на другую вкладку закрываем модальное окно
-      setShowSubscriptionModal(false);
     }
   }, [activeTab]);
 
@@ -108,14 +103,10 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
       console.log('📚 Response data:', response.data);
       console.log('📚 Response data.readings:', response.data?.readings);
       
-      if (response.success && response.data) {
-        const readings = response.data.readings || [];
+      if (response.success) {
+        const readings = response.data?.readings ?? [];
         console.log('📚 Setting history with readings:', readings.length);
         setHistory(readings);
-      } else if (response.subscriptionRequired) {
-        // Показываем модальное окно подписки для истории
-        setShowSubscriptionModal(true);
-        setError('История доступна только по подписке');
       } else {
         console.error('📚 History load failed:', response.error);
         setError(response.error || 'Не удалось загрузить историю');
@@ -684,19 +675,6 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
         {/* Bottom Navigation */}
         <BottomNavigation activeTab={activeTab} onTabChange={onTabChange} />
       </div>
-
-      {/* Subscription Modal for History */}
-      <SubscriptionModal
-        isOpen={showSubscriptionModal}
-        onClose={() => {
-          setShowSubscriptionModal(false);
-          // Возвращаемся на главную страницу при закрытии
-          onTabChange('home');
-        }}
-        title="Требуется подписка"
-        message="Подписка — это ваш доступ к полному функционалу. Оформите её прямо сейчас и продолжайте работу без ограничений."
-        showHistoryMessage={false}
-      />
     </div>
 
     {/* Modal для подробного описания карты - рендерится вне основного контейнера с overflow-hidden */}
