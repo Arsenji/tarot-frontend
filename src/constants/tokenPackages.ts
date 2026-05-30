@@ -16,5 +16,5 @@ export const TOKEN_PACKAGES: TokenPackage[] = [
 
 export const YES_NO_TOKEN_COST = 5;
 export const THREE_CARDS_TOKEN_COST = 10;
-export const FREE_YES_NO_LIFETIME = 3;
-export const FREE_THREE_CARDS_LIFETIME = 3;
+export const FREE_YES_NO_LIFETIME = 1;
+export const FREE_THREE_CARDS_LIFETIME = 1;

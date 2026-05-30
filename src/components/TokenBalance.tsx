@@ -5,6 +5,10 @@ import { Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { trackTokensShopOpened } from '@/utils/analytics';
 import type { WalletInfo } from '@/state/tokenStore';
+import {
+  FREE_YES_NO_LIFETIME,
+  FREE_THREE_CARDS_LIFETIME,
+} from '@/constants/tokenPackages';
 
 interface TokenBalanceProps {
   walletInfo?: WalletInfo | null;
@@ -62,8 +66,8 @@ export function TokenBalance({ walletInfo, onBuyTokens, compact = false }: Token
         )}
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs text-gray-300">
-        <div>❓ Да/Нет: {walletInfo.freeYesNoRemaining}/3 бесплатно</div>
-        <div>🔮 3 карты: {walletInfo.freeThreeCardsRemaining}/3 бесплатно</div>
+        <div>❓ Да/Нет: {walletInfo.freeYesNoRemaining}/{FREE_YES_NO_LIFETIME} бесплатно</div>
+        <div>🔮 3 карты: {walletInfo.freeThreeCardsRemaining}/{FREE_THREE_CARDS_LIFETIME} бесплатно</div>
       </div>
     </motion.div>
   );

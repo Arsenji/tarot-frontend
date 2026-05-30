@@ -17,6 +17,10 @@ import {
   type TarotType,
   useWalletStatus,
 } from '@/state/tokenStore';
+import {
+  FREE_YES_NO_LIFETIME,
+  FREE_THREE_CARDS_LIFETIME,
+} from '@/constants/tokenPackages';
 
 const sparklesData = [
   { left: 10, top: 20, delay: 0, duration: 2.5 },
@@ -93,12 +97,12 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
       if (type === 'daily') return 'Бесплатно';
       if (type === 'yesNo') {
         if (walletInfo && walletInfo.freeYesNoRemaining > 0) {
-          return `Бесплатно (${walletInfo.freeYesNoRemaining}/3)`;
+          return `Бесплатно (${walletInfo.freeYesNoRemaining}/${FREE_YES_NO_LIFETIME})`;
         }
         return `${walletInfo?.yesNoTokenCost ?? 5} токенов`;
       }
       if (walletInfo && walletInfo.freeThreeCardsRemaining > 0) {
-        return `Бесплатно (${walletInfo.freeThreeCardsRemaining}/3)`;
+        return `Бесплатно (${walletInfo.freeThreeCardsRemaining}/${FREE_THREE_CARDS_LIFETIME})`;
       }
       return `${walletInfo?.threeCardsTokenCost ?? 10} токенов`;
     }
