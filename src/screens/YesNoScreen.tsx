@@ -56,6 +56,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
     card?: YesNoCard;
     yesNoAnswer?: 'Да' | 'Нет' | null;
     isLoading?: boolean;
+    error?: boolean;
   }>>([]);
   const [showClarifyingInput, setShowClarifyingInput] = useState(false);
   const [currentClarifyingQuestion, setCurrentClarifyingQuestion] = useState('');
@@ -226,62 +227,60 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
         originalQuestion // Передаем оригинальный вопрос
       );
 
-      console.log('API Response:', response);
-      console.log('Response success:', response.success);
-      console.log('Response data:', response.data);
-
-      let answer = 'Карты говорят, что ответ на ваш уточняющий вопрос требует более глубокого размышления.';
+      let answer = '';
       let clarifyingCard: YesNoCard = result.card;
       let yesNoAnswer: 'Да' | 'Нет' | null = null;
-      
-      if (response.success && response.data) {
-        const d = response.data;
-        const nested = d.data;
-        if (d.answer) {
-          answer = d.answer;
-          if (d.card) clarifyingCard = d.card as YesNoCard;
-          yesNoAnswer = d.yesNoAnswer || null;
-        } else if (nested?.answer) {
-          answer = nested.answer;
-          if (nested.card) clarifyingCard = nested.card as YesNoCard;
-          yesNoAnswer = nested.yesNoAnswer || null;
-        } else {
-          console.error('Answer not found in response data:', d);
-        }
+
+      const d = response.data as
+        | { answer?: string; yesNoAnswer?: 'Да' | 'Нет' | null; card?: YesNoCard; data?: { answer?: string; yesNoAnswer?: 'Да' | 'Нет' | null; card?: YesNoCard } }
+        | null
+        | undefined;
+      const payload = d?.answer ? d : d?.data;
+
+      if (response.success && payload?.answer) {
+        answer = payload.answer;
+        if (payload.card) clarifyingCard = payload.card as YesNoCard;
+        yesNoAnswer = payload.yesNoAnswer || null;
       } else {
-        console.error('API request failed:', response.error);
+        // ИИ недоступен или вернул ошибку — показываем явную ошибку,
+        // а не подставляем выдуманный ответ.
+        console.error('Clarifying answer failed:', response.error);
+        setClarifyingQuestions(prev =>
+          prev.map((q, index) =>
+            index === prev.length - 1
+              ? { ...q, isLoading: false, error: true, yesNoAnswer: null,
+                  answer: 'Не удалось получить ответ ИИ. Попробуйте задать вопрос ещё раз.' }
+              : q
+          )
+        );
+        return;
       }
 
-      // Если yesNoAnswer не получен из API, извлекаем его из текста ответа
+      // Фолбэк: если бэкенд не вернул yesNoAnswer, определяем по ПЕРВОМУ слову
+      // (без подстрочного includes, чтобы «ДА» внутри слов не ломало ответ).
       if (!yesNoAnswer && answer) {
         const firstLine = answer.split('\n')[0].trim().toUpperCase();
-        if (firstLine.includes('НЕТ') || firstLine.startsWith('НЕТ')) {
+        if (firstLine.startsWith('НЕТ')) {
           yesNoAnswer = 'Нет';
-        } else if (firstLine.includes('ДА') || firstLine.startsWith('ДА')) {
+        } else if (firstLine.startsWith('ДА')) {
           yesNoAnswer = 'Да';
         }
       }
 
-      console.log('Final answer:', answer);
-      console.log('Clarifying card:', clarifyingCard);
-      console.log('Yes/No answer:', yesNoAnswer);
-
-      // Обновляем вопрос с полученным ответом и картой
-      setClarifyingQuestions(prev => 
-        prev.map((q, index) => 
-          index === prev.length - 1 
-            ? { ...q, answer, card: clarifyingCard, yesNoAnswer, isLoading: false }
+      setClarifyingQuestions(prev =>
+        prev.map((q, index) =>
+          index === prev.length - 1
+            ? { ...q, answer, card: clarifyingCard, yesNoAnswer, isLoading: false, error: false }
             : q
         )
       );
     } catch (error) {
       console.error('Error getting clarifying answer:', error);
-      
-      // Обновляем вопрос с ошибкой
-      setClarifyingQuestions(prev => 
-        prev.map((q, index) => 
-          index === prev.length - 1 
-            ? { ...q, answer: 'Карты говорят, что ответ на ваш уточняющий вопрос требует более глубокого размышления.', isLoading: false }
+      setClarifyingQuestions(prev =>
+        prev.map((q, index) =>
+          index === prev.length - 1
+            ? { ...q, isLoading: false, error: true, yesNoAnswer: null,
+                answer: 'Не удалось получить ответ ИИ. Попробуйте задать вопрос ещё раз.' }
             : q
         )
       );
@@ -639,6 +638,26 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                                 </div>
                               </div>
                             </div>
+                          ) : item.error ? (
+                            <div className="space-y-4">
+                              {/* Question */}
+                              <div className="bg-blue-900/30 rounded-2xl p-4 border border-blue-400/30">
+                                <div className="flex items-start space-x-2">
+                                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                                    <span className="text-xs text-white font-bold">В</span>
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="text-blue-300 text-sm font-medium mb-1">Ваш вопрос</p>
+                                    <p className="text-white text-sm leading-relaxed">{item.question}</p>
+                                  </div>
+                                </div>
+                              </div>
+                              {/* Error */}
+                              <div className="bg-red-900/30 border border-red-400/30 rounded-2xl p-4 text-center">
+                                <div className="text-2xl mb-1">⚠️</div>
+                                <p className="text-red-300 text-sm">{item.answer}</p>
+                              </div>
+                            </div>
                           ) : item.answer ? (
                             <div className="space-y-4">
                               {/* Question */}
@@ -685,27 +704,30 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                               </div>
 
                               {/* Answer */}
-                              <motion.div
-                                className={`text-center p-6 rounded-2xl border-2 ${
-                                  (item.yesNoAnswer === 'Да' || (item.answer && item.answer.split('\n')[0].toUpperCase().includes('ДА')))
-                                    ? 'bg-green-900/30 border-green-400/30'
-                                    : 'bg-red-900/30 border-red-400/30'
-                                }`}
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ duration: 0.5, delay: 0.8 }}
-                              >
-                                <div className="text-4xl mb-2">
-                                  {(item.yesNoAnswer === 'Да' || (item.answer && item.answer.split('\n')[0].toUpperCase().includes('ДА'))) ? '✅' : '❌'}
-                                </div>
-                                <h2 className={`text-3xl font-bold mb-2 ${
-                                  (item.yesNoAnswer === 'Да' || (item.answer && item.answer.split('\n')[0].toUpperCase().includes('ДА')))
-                                    ? 'text-green-400' 
-                                    : 'text-red-400'
-                                }`}>
-                                  {item.yesNoAnswer || (item.answer ? item.answer.split('\n')[0] : 'Нет')}
-                                </h2>
-                              </motion.div>
+                              {(() => {
+                                const isYes = item.yesNoAnswer
+                                  ? item.yesNoAnswer === 'Да'
+                                  : (item.answer || '').split('\n')[0].trim().toUpperCase().startsWith('ДА');
+                                return (
+                                  <motion.div
+                                    className={`text-center p-6 rounded-2xl border-2 ${
+                                      isYes
+                                        ? 'bg-green-900/30 border-green-400/30'
+                                        : 'bg-red-900/30 border-red-400/30'
+                                    }`}
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.5, delay: 0.8 }}
+                                  >
+                                    <div className="text-4xl mb-2">{isYes ? '✅' : '❌'}</div>
+                                    <h2 className={`text-3xl font-bold mb-2 ${
+                                      isYes ? 'text-green-400' : 'text-red-400'
+                                    }`}>
+                                      {item.yesNoAnswer || (isYes ? 'Да' : 'Нет')}
+                                    </h2>
+                                  </motion.div>
+                                );
+                              })()}
 
                               {/* Interpretation */}
                               <motion.div
