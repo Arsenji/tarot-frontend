@@ -552,7 +552,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
                               : (card.uprightImage || card.image || card.imagePath || '/images/placeholder.png')
                           }
                           alt={card.name}
-                          className="w-full h-full object-cover"
+                          className={`w-full h-full object-cover ${card.isReversed ? 'rotate-180' : ''}`}
                         />
                       </motion.div>
                       
@@ -686,7 +686,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
                                 <ImageWithFallback
                                   src={item.card?.image || item.card?.imagePath || '/images/placeholder.png'}
                                   alt={item.card?.name || 'Карта'}
-                                className="w-full h-full object-cover"
+                                className={`w-full h-full object-cover ${item.card?.isReversed ? 'rotate-180' : ''}`}
                               />
                             </motion.div>
                               <h3 className="text-lg text-amber-400 mb-2">{item.card?.name || 'Карта'}</h3>
@@ -866,7 +866,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
                       <ImageWithFallback
                         src={selectedCardForDescription.image || selectedCardForDescription.imagePath || '/images/placeholder.png'}
                         alt={selectedCardForDescription.name}
-                        className="w-full h-full object-cover"
+                        className={`w-full h-full object-cover ${selectedCardForDescription.isReversed ? 'rotate-180' : ''}`}
                       />
                     </motion.div>
                   </div>

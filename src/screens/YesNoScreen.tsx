@@ -32,6 +32,7 @@ interface YesNoCard {
   meaning?: string;
   advice?: string;
   isMajorArcana?: boolean;
+  isReversed?: boolean;
   suit?: string;
   number?: number;
 }
@@ -171,6 +172,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
               : apiData.card.uprightInterpretation,
             advice: apiData.interpretation,
             isMajorArcana: apiData.card.category === 'major',
+            isReversed: apiData.card.isReversed,
             suit: apiData.card.category,
             number: 0,
           },
@@ -516,7 +518,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                     <ImageWithFallback
                       src={result.card.imagePath || result.card.image || '/images/placeholder.png'}
                       alt={result.card.name}
-                      className="w-full h-full object-cover"
+                      className={`w-full h-full object-cover ${result.card.isReversed ? 'rotate-180' : ''}`}
                     />
                   </motion.div>
                   <h3 className="text-xl text-amber-400 mb-2">{result.card.name}</h3>
@@ -684,7 +686,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                                   <ImageWithFallback
                                     src={item.card?.imagePath || '/images/placeholder.png'}
                                     alt={item.card?.name || 'Карта'}
-                                    className="w-full h-full object-cover"
+                                    className={`w-full h-full object-cover ${item.card?.isReversed ? 'rotate-180' : ''}`}
                                   />
                                 </motion.div>
                                 <h3 className="text-lg text-amber-400 mb-2">{item.card?.name || 'Карта'}</h3>
@@ -887,7 +889,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                   <ImageWithFallback
                     src={selectedCardForDescription.imagePath || '/images/placeholder.png'}
                     alt={selectedCardForDescription.name}
-                    className="w-32 h-48 mx-auto rounded-lg object-cover"
+                    className={`w-32 h-48 mx-auto rounded-lg object-cover ${selectedCardForDescription.isReversed ? 'rotate-180' : ''}`}
                   />
                 </div>
                 

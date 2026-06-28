@@ -16,6 +16,7 @@ interface HistoryCard {
   meaning: string;
   advice: string;
   keywords: string;
+  isReversed?: boolean;
 }
 
 interface ClarifyingQuestion {
@@ -126,6 +127,33 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
   const closeDetails = () => {
     setSelectedEntry(null);
   };
+
+  // Telegram BackButton: в деталях конкретного расклада нативная кнопка должна
+  // возвращать к списку истории, а не закрывать всё мини-приложение.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let cleanup = () => {};
+    import('@twa-dev/sdk')
+      .then((TWA) => {
+        const WebApp = (TWA as any).WebApp || (TWA as any).default?.WebApp;
+        const backButton = WebApp?.BackButton;
+        if (!backButton) return;
+
+        if (selectedEntry) {
+          const handler = () => setSelectedEntry(null);
+          backButton.onClick(handler);
+          backButton.show();
+          cleanup = () => {
+            backButton.offClick(handler);
+            backButton.hide();
+          };
+        } else {
+          backButton.hide();
+        }
+      })
+      .catch(() => {});
+    return () => cleanup();
+  }, [selectedEntry]);
 
   const handleCardDetails = async (card: HistoryCard, category: string) => {
     try {
@@ -369,11 +397,13 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
                         <img
                           src={card.imagePath}
                           alt={card.name}
-                          className="w-full h-full object-cover"
+                          className={`w-full h-full object-cover ${card.isReversed ? 'rotate-180' : ''}`}
                         />
                       </div>
-                      <div className="flex-1">
-                        <h4 className="text-amber-400 mb-3 text-lg font-semibold">{card.name}</h4>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-amber-400 mb-3 text-lg font-semibold">
+                          {card.name}{card.isReversed ? ' (перевёрнутая)' : ''}
+                        </h4>
                         <div className="space-y-2 text-sm">
                           <p className="text-white">
                             Сегодня карта "{card.name || 'Неизвестная карта'}" советует вам: <span className="text-amber-300">{card.advice || 'Следуйте своей интуиции'}</span>
@@ -636,7 +666,7 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
                           <img
                             src={card.imagePath}
                             alt={card.name}
-                            className="w-full h-full object-cover"
+                            className={`w-full h-full object-cover ${card.isReversed ? 'rotate-180' : ''}`}
                           />
                         </div>
                         {cardIndex === 0 && entry.cards.length > 1 && (
@@ -646,7 +676,7 @@ export function HistoryScreen({ onBack, activeTab, onTabChange }: HistoryScreenP
                         )}
                       </div>
                     ))}
-                    <div className="flex-1 ml-3">
+                    <div className="flex-1 min-w-0 ml-3">
                       <p className="text-sm text-white truncate">
                         {entry.cards[0].name}
                         {entry.cards.length > 1 && ` и еще ${entry.cards.length - 1}`}

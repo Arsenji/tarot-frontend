@@ -15,6 +15,7 @@ import { BlockedTarotModal } from '@/components/BlockedTarotModal';
 import { InsufficientTokensModal } from '@/components/InsufficientTokensModal';
 import { TokenShopModal } from '@/components/TokenShopModal';
 import { trackTarotStarted, trackTarotCompleted, trackTokensSpent } from '@/utils/analytics';
+import { tarotCards } from '@/data/tarotCards';
 
 type DisplayCard = {
   name: string;
@@ -24,6 +25,7 @@ type DisplayCard = {
   advice?: string;
   meaning?: string;
   isMajorArcana?: boolean;
+  isReversed?: boolean;
   suit?: string;
   number?: number;
 };
@@ -251,7 +253,18 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
   }, []);
 
   const openDescriptionModal = (card: DisplayCard) => {
-    setSelectedCardForDescription(card);
+    // API "совета дня" не присылает meaning/keywords/advice, поэтому дополняем
+    // карту локальными данными по русскому названию, а текст совета берём из ИИ.
+    const local = tarotCards.find(
+      (c) => c.name?.toLowerCase().trim() === card.name?.toLowerCase().trim()
+    );
+    const enriched: DisplayCard = {
+      ...card,
+      meaning: card.meaning || local?.meaning || 'Описание для этой карты недоступно.',
+      advice: card.advice || aiAdvice || local?.advice || 'Прислушайтесь к своей интуиции.',
+      keywords: card.keywords || local?.keywords || '—',
+    };
+    setSelectedCardForDescription(enriched);
     setShowDescriptionModal(true);
   };
 
@@ -538,9 +551,14 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
                   <ImageWithFallback
                     src={selectedCard.image}
                     alt={selectedCard.name}
-                    className="w-full h-full object-cover"
+                    className={`w-full h-full object-cover ${selectedCard.isReversed ? 'rotate-180' : ''}`}
                   />
                 </div>
+                {selectedCard.isReversed && (
+                  <span className="inline-block mt-3 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-200 text-xs">
+                    Перевёрнутая карта
+                  </span>
+                )}
                 
                 {/* Magical glow effect */}
                 <motion.div
@@ -671,7 +689,7 @@ export function OneCardScreen({ onBack }: OneCardScreenProps) {
                   <ImageWithFallback
                     src={selectedCardForDescription.image || '/images/placeholder.png'}
                     alt={selectedCardForDescription.name}
-                    className="w-32 h-48 mx-auto rounded-lg object-cover"
+                    className={`w-32 h-48 mx-auto rounded-lg object-cover ${selectedCardForDescription.isReversed ? 'rotate-180' : ''}`}
                   />
                 </div>
                 

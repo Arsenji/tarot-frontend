@@ -2,6 +2,9 @@ export interface TarotCard {
   name: string;
   imagePath?: string;
   image?: string;
+  uprightImage?: string;
+  reversedImage?: string;
+  isReversed?: boolean;
   meaning: string;
   advice: string;
   keywords: string;
