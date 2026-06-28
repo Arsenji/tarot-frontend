@@ -9,6 +9,7 @@ import {
   bootstrapWalletStatus,
 } from '@/state/tokenStore';
 import { TarotCard } from '@/types/tarot';
+import { tarotCards } from '@/data/tarotCards';
 import { TarotLoader } from './OneCardScreen';
 import { formatInterpretationText } from '@/utils/textFormatting';
 import { BlockedTarotModal } from '@/components/BlockedTarotModal';
@@ -133,7 +134,18 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
   }, []);
 
   const openDescriptionModal = (card: TarotCard) => {
-    setSelectedCardForDescription(card);
+    // API расклада не присылает meaning/keywords/advice, поэтому дополняем карту
+    // локальными данными по русскому названию.
+    const local = tarotCards.find(
+      (c) => c.name?.toLowerCase().trim() === card.name?.toLowerCase().trim()
+    );
+    const enriched: TarotCard = {
+      ...card,
+      meaning: card.meaning || local?.meaning || 'Описание для этой карты недоступно.',
+      advice: card.advice || local?.advice || 'Прислушайтесь к своей интуиции.',
+      keywords: card.keywords || local?.keywords || '—',
+    };
+    setSelectedCardForDescription(enriched);
     setShowDescriptionModal(true);
   };
 
@@ -361,7 +373,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
       {/* Background floating cards - убраны для избежания проблем с импортом */}
 
       {/* Main Content */}
-      <div className="relative z-10 flex flex-col h-screen">
+      <div className="relative z-10 flex flex-col min-h-screen">
         {/* Header */}
         <motion.div
           className="flex items-center justify-between px-4 py-6 pt-20"
@@ -730,7 +742,7 @@ export function ThreeCardsScreen({ onBack }: ThreeCardsScreenProps) {
                             </div>
                               <div className="overflow-hidden">
                                 <p className={`text-gray-300 leading-relaxed whitespace-pre-line transition-all duration-300 ${
-                                  isInterpretationExpanded[`clarifying-${index}`] ? 'max-h-none opacity-100' : 'max-h-20 opacity-70'
+                                  isInterpretationExpanded[`clarifying-${index}`] ? 'max-h-none opacity-100' : 'max-h-20 overflow-hidden opacity-70'
                                 }`}>
                                   {item.answer}
                                 </p>
