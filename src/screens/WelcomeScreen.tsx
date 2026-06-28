@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { FloatingCard } from '@/components/FloatingCard';
 import { TarotLogo } from '@/components/TarotLogo';
-import { Sparkles, Moon, Star } from 'lucide-react';
+import { Sparkles, Moon, Star, ShieldCheck } from 'lucide-react';
 
 const tarotCards = [
   {
@@ -227,12 +227,12 @@ export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
 
             {/* Title */}
             <motion.h1
-              className="text-4xl font-bold text-white mb-2 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent"
+              className="text-3xl font-bold text-white mb-2 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 1, delay: 1.5 }}
             >
-              Таро Гадание
+              Таро с искусственным интеллектом
             </motion.h1>
 
             {/* Subtitle */}
@@ -242,7 +242,7 @@ export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
               animate={{ opacity: 1 }}
               transition={{ duration: 1, delay: 1.8 }}
             >
-              Онлайн консультации
+              Расклады Таро
             </motion.p>
 
             {/* Description */}
@@ -252,23 +252,27 @@ export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
               animate={{ opacity: 1 }}
               transition={{ duration: 1, delay: 2.1 }}
             >
-              Погрузитесь в мир мистики и откройте тайны своей судьбы с помощью древних карт Таро
+              Найдите ответы на все свои вопросы вместе с профессионально обученным AI тарологом
             </motion.p>
 
             {/* Features */}
             <motion.div
-              className="flex justify-center space-x-6 mt-6"
+              className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-6"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1, delay: 2.4 }}
             >
               <div className="flex items-center space-x-2 text-purple-200">
                 <Sparkles className="w-4 h-4" />
-                <span className="text-sm">Точные предсказания</span>
+                <span className="text-sm">Честные предсказания</span>
               </div>
               <div className="flex items-center space-x-2 text-purple-200">
                 <Moon className="w-4 h-4" />
                 <span className="text-sm">24/7 доступ</span>
+              </div>
+              <div className="flex items-center space-x-2 text-purple-200">
+                <ShieldCheck className="w-4 h-4" />
+                <span className="text-sm">Абсолютно анонимно</span>
               </div>
             </motion.div>
           </motion.div>
@@ -297,7 +301,7 @@ export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
               />
               <span className="text-lg font-semibold relative z-10 flex items-center justify-center space-x-2">
                 <Sparkles className="w-5 h-5" />
-                <span>Начать гадание</span>
+                <span>Получить расклад</span>
               </span>
             </Button>
           </motion.div>

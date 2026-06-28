@@ -126,7 +126,7 @@ export const MainScreen = ({ activeTab, onTabChange, onOneCard, onYesNo, onThree
   };
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white flex flex-col items-center justify-between pt-20 pb-16">
+    <div className="relative h-screen overflow-y-auto bg-gradient-to-br from-gray-900 to-gray-800 text-white flex flex-col items-center pt-20 pb-32">
       <SparklesBackground />
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-md px-4">
