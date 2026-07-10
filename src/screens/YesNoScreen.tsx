@@ -579,7 +579,7 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                   </div>
                   <div className="overflow-hidden">
                     <p className={`text-gray-300 leading-relaxed whitespace-pre-line transition-all duration-300 ${
-                      isInterpretationExpanded.main ? 'max-h-none opacity-100' : 'max-h-20 opacity-70'
+                      isInterpretationExpanded.main ? 'max-h-none opacity-100' : 'max-h-20 overflow-hidden opacity-70'
                     }`}>
                       {result.interpretation}
                     </p>
@@ -756,9 +756,17 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
                                 </div>
                                 <div className="overflow-hidden">
                                   <p className={`text-gray-300 leading-relaxed whitespace-pre-line transition-all duration-300 ${
-                                    isInterpretationExpanded[`clarifying-${index}`] ? 'max-h-none opacity-100' : 'max-h-20 opacity-70'
+                                    isInterpretationExpanded[`clarifying-${index}`] ? 'max-h-none opacity-100' : 'max-h-20 overflow-hidden opacity-70'
                                   }`}>
-                                    {item.answer.split('\n').length > 1 ? item.answer.split('\n').slice(1).join('\n') : 'Карты дают вам мудрый совет для решения вашего вопроса.'}
+                                    {(() => {
+                                      // Ответ ИИ начинается с «Да»/«Нет» (это уже показано крупно выше),
+                                      // поэтому убираем только ведущее «Да»/«Нет» и показываем остальное
+                                      // толкование. Раньше код брал текст после первого переноса строки и,
+                                      // если ИИ вернул всё одной строкой, показывал захардкоженную заглушку.
+                                      const raw = (item.answer || '').trim();
+                                      const body = raw.replace(/^\s*(да|нет)[\s.,:;!—–-]*/i, '').trim();
+                                      return body || raw;
+                                    })()}
                                   </p>
                                   {!isInterpretationExpanded[`clarifying-${index}`] && (
                                     <div className="mt-2 text-xs text-gray-400">
