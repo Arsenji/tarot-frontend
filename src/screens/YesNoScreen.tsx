@@ -178,7 +178,13 @@ export function YesNoScreen({ onBack }: YesNoScreenProps) {
           },
           answer: finalAnswer,
           yesNoAnswer,
-          interpretation: apiData.interpretation,
+          // «Да»/«Нет» уже показаны крупно отдельным блоком, поэтому в тексте
+          // толкования убираем ведущее «Да»/«Нет» и пустые строки после него,
+          // чтобы не было дубля и висящего пустого места.
+          interpretation:
+            (apiData.interpretation || '')
+              .replace(/^\s*(да|нет)[\s.,:;!—–-]*/i, '')
+              .trim() || apiData.interpretation,
         });
         trackTarotCompleted('yes_no', true);
         if (response.tokensSpent && response.tokensSpent > 0) {
