@@ -87,7 +87,7 @@ class ApiService {
 
   constructor() {
     this.baseUrl = process.env.NODE_ENV === 'production'
-      ? 'https://tarot-tg-backend.onrender.com'
+      ? 'https://bot-1789712893-8930-klyksa.bothost.tech'
       : 'http://localhost:3001';
   }
 

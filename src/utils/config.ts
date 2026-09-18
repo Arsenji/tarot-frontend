@@ -3,9 +3,9 @@
  */
 
 export const getApiBaseUrl = (): string => {
-  // В продакшене используем URL основного backend сервиса на Render
+  // В продакшене используем URL основного backend сервиса на BotHost
   if (process.env.NODE_ENV === 'production') {
-    return 'https://tarot-tg-backend.onrender.com';
+    return 'https://bot-1789712893-8930-klyksa.bothost.tech';
   }
   
   // В разработке используем localhost
